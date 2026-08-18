@@ -1,0 +1,895 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  HMSG (Hyundai Motorsport GmbH) - WEC Racing PRD infrastructure (eu-central-1 / Frankfurt).
+  Creates: VPC + subnets + NAT gateway, Windows EC2 (MSSQL host - SQL Server is installed by the
+  client), AWS Client VPN (SAML auth via Microsoft Entra ID - client side responsibility),
+  and Site-to-Site IPSEC VPN to the on-premise racing site (static routing).
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Naming"
+        Parameters: [ProjectName, EnvironmentName]
+      - Label:
+          default: "Network"
+        Parameters: [VpcCidr, ClientVpnCidr, OnPremCidr, CustomerGatewayIp]
+      - Label:
+          default: "EC2 (MSSQL host)"
+        Parameters: [InstanceType, KeyPairName, WindowsAmi, AdminPassword, AdminSecretName]
+      - Label:
+          default: "Client VPN (SAML / Entra ID)"
+        Parameters: [VpnDomainName, HostedZoneId, ServerCertificateArn, SamlMetadataDocument, SplitTunnel]
+    ParameterLabels:
+      ProjectName:
+        default: "Project name (name prefix)"
+      EnvironmentName:
+        default: "Environment"
+      VpcCidr:
+        default: "VPC CIDR"
+      ClientVpnCidr:
+        default: "Client VPN client CIDR"
+      OnPremCidr:
+        default: "On-premise CIDR (site-to-site)"
+      CustomerGatewayIp:
+        default: "On-premise customer gateway public IP"
+      InstanceType:
+        default: "EC2 instance type"
+      KeyPairName:
+        default: "EC2 key pair"
+      WindowsAmi:
+        default: "Windows AMI (SSM parameter)"
+      AdminPassword:
+        default: "Local admin (sysadm) password"
+      AdminSecretName:
+        default: "Secrets Manager secret name"
+      VpnDomainName:
+        default: "Client VPN domain"
+      HostedZoneId:
+        default: "Route 53 Hosted Zone ID (optional)"
+      ServerCertificateArn:
+        default: "Existing ACM certificate ARN (optional)"
+      SamlMetadataDocument:
+        default: "Entra ID Federation Metadata XML"
+      SplitTunnel:
+        default: "Split tunnel"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: hmsg-rac
+    Description: Project / name prefix. Default 'hmsg-rac' matches the existing naming convention.
+  EnvironmentName:
+    Type: String
+    Default: prd
+    AllowedValues: [prd]
+    Description: Environment suffix.
+  VpcCidr:
+    Type: String
+    Default: 172.200.0.0/24
+    AllowedPattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+    Description: >-
+      VPC CIDR (from the requirement sheet). The six /27 subnets are derived from this value with
+      Fn::Cidr, so any /24 works. WARNING: 172.200.0.0/24 is NOT RFC1918 private space (private is
+      172.16.0.0/12, i.e. 172.16-172.31) - it is publicly allocated address space, so the VPC can
+      never reach the real internet hosts that own it. Confirm this with the client, or switch to a
+      private range such as 172.20.0.0/24.
+  ClientVpnCidr:
+    Type: String
+    Default: 10.200.0.0/22
+    AllowedPattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+    Description: IP range assigned to Client VPN clients. Must not overlap the VPC or on-prem CIDRs.
+  # --- Site-to-Site VPN: supply BOTH of the next two parameters, or NEITHER. ---
+  # Leaving both empty skips the whole Site-to-Site VPN (customer gateway, VGW, connection, route,
+  # propagation) plus the on-premise security-group rules, so the VPC / EC2 / Client VPN can be
+  # deployed before the client provides these values. Add them later with a stack update.
+  OnPremCidr:
+    Type: String
+    # Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+    Description: >-
+      On-premise (racing site) network CIDR reachable via the Site-to-Site VPN (static route).
+      Leave EMPTY to skip the Site-to-Site VPN entirely. If set, it must NOT overlap ClientVpnCidr
+      (default 10.200.0.0/22) or VpcCidr - e.g. do not use 10.0.0.0/8, it swallows the Client VPN range.
+  CustomerGatewayIp:
+    Type: String
+    # Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
+    Description: >-
+      Public IP of the on-premise (racing site) VPN device / firewall. Leave EMPTY to skip the
+      Site-to-Site VPN entirely. NOTE: this public IP changes per racing site - update the stack
+      when the site moves (replaces the customer gateway and VPN connection).
+  InstanceType:
+    Type: String
+    Default: m7i.2xlarge
+    Description: EC2 instance type. m7i.2xlarge = 8 vCPU / 32 GiB (client requirement).
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: hmsg-rac-prd-key-ec2-ec1
+    Description: Existing EC2 key pair in eu-central-1. Used to decrypt the built-in Administrator password.
+  WindowsAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base
+    Description: Windows Server 2022 (English) AMI, resolved from the SSM public parameter.
+  AdminPassword:
+    Type: String
+    NoEcho: true
+    MinLength: '8'
+    Description: >-
+      Password for the local admin account 'sysadm' (from the requirement sheet). Stored in Secrets
+      Manager, never exposed in outputs. TREAT AS CREATE-ONLY: UserData runs only at first boot, so
+      changing this on a stack update rewrites the secret but NOT the Windows account - the stored
+      value would then no longer log in. To rotate, change the Windows password on the host and
+      update the secret to match (see README).
+  AdminSecretName:
+    Type: String
+    Default: hmsg-rac-prd-sysadm-password
+    Description: Name of the Secrets Manager secret that stores the sysadm password.
+  VpnDomainName:
+    Type: String
+    Default: vpn.hmg-racing.com
+    Description: Public domain used for the AWS Client VPN (ACM server certificate).
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: >-
+      Route 53 Hosted Zone ID if the domain is hosted in this account (ACM validation records are
+      created automatically). Leave empty if DNS is managed by the client / HAEE - the CNAME record
+      must then be added manually (see ACM console) and the stack waits until the certificate is issued.
+  ServerCertificateArn:
+    Type: String
+    Default: ""
+    Description: >-
+      Existing ISSUED ACM server certificate ARN for the Client VPN endpoint.
+      Leave empty to create a new certificate in this stack.
+  SamlMetadataDocument:
+    Type: String
+    Description: >-
+      Federation Metadata XML of the client's Entra ID Enterprise Application (AWS ClientVPN).
+      The default is a PLACEHOLDER so the stack can deploy - replace it with the real XML
+      received from the client (stack update) before users can sign in.
+  SplitTunnel:
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+    Description: >-
+      true = only VPC traffic goes through the VPN (recommended). false = all client traffic
+      is routed through the VPN.
+
+Conditions:
+  UseExistingCert: !Not [!Equals [!Ref ServerCertificateArn, ""]]
+  UseHostedZone: !Not [!Equals [!Ref HostedZoneId, ""]]
+  NoHostedZone: !Equals [!Ref HostedZoneId, ""]
+  SplitTunnelEnabled: !Equals [!Ref SplitTunnel, "true"]
+  # Only request a new ACM certificate when the caller did NOT supply ServerCertificateArn.
+  CreateAcmCertHostedZone: !And [!Condition UseHostedZone, !Not [!Condition UseExistingCert]]
+  CreateAcmCertManual: !And [!Condition NoHostedZone, !Not [!Condition UseExistingCert]]
+  # Site-to-Site VPN is created only when BOTH on-premise values are supplied.
+  HasOnPremCidr: !Not [!Equals [!Ref OnPremCidr, ""]]
+  HasCustomerGatewayIp: !Not [!Equals [!Ref CustomerGatewayIp, ""]]
+  CreateSiteToSiteVpn: !And [!Condition HasOnPremCidr, !Condition HasCustomerGatewayIp]
+
+Resources:
+  # ============================================================
+  # 1. VPC / Network
+  # ============================================================
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-vpc-ec1"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-igw-ec1"
+
+  VpcIgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # --- Subnets (dual AZ: eu-central-1a / eu-central-1c) ---
+  # CIDRs are derived from VpcCidr with Fn::Cidr (6 subnets x /27) rather than hardcoded, so
+  # changing VpcCidr does not break the stack. Index order: pub-a, pub-c, pri-a, pri-c, db-a, db-c.
+  PubSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidr, 6, 5]]
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-sub-pub-ec1a"
+  PubSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 6, 5]]
+      AvailabilityZone: !Sub "${AWS::Region}c"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-sub-pub-ec1c"
+  PriSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [2, !Cidr [!Ref VpcCidr, 6, 5]]
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-sub-pri-ec1a"
+  PriSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [3, !Cidr [!Ref VpcCidr, 6, 5]]
+      AvailabilityZone: !Sub "${AWS::Region}c"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-sub-pri-ec1c"
+  DbSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [4, !Cidr [!Ref VpcCidr, 6, 5]]
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-sub-db-ec1a"
+  DbSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Select [5, !Cidr [!Ref VpcCidr, 6, 5]]
+      AvailabilityZone: !Sub "${AWS::Region}c"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-sub-db-ec1c"
+
+  # --- Route tables ---
+  PubRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-rtb-pub-ec1"
+  PriRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-rtb-pri-ec1"
+  DbRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-rtb-db-ec1"
+
+  PubRouteInternet:
+    Type: AWS::EC2::Route
+    DependsOn: VpcIgwAttachment
+    Properties:
+      RouteTableId: !Ref PubRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PubSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubnetA
+      RouteTableId: !Ref PubRouteTable
+  PubSubnetCRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubnetC
+      RouteTableId: !Ref PubRouteTable
+  PriSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PriSubnetA
+      RouteTableId: !Ref PriRouteTable
+  PriSubnetCRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PriSubnetC
+      RouteTableId: !Ref PriRouteTable
+  DbSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DbSubnetA
+      RouteTableId: !Ref DbRouteTable
+  DbSubnetCRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DbSubnetC
+      RouteTableId: !Ref DbRouteTable
+
+  # --- NAT gateway ---
+  NatEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEip.AllocationId
+      SubnetId: !Ref PubSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-NAT-pub-ec1"
+  PriRouteNat:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PriRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  # --- VPC Flow Logs -> S3 (lifecycle: 1 month -> 1 year) ---
+  FlowLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-${EnvironmentName}-flowlog-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Suspended
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: FlowLogLifecycle
+            Status: Enabled
+            Transitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 30
+            ExpirationInDays: 365
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-flowlog-${AWS::AccountId}"
+
+  # Note: no IAM role here. For LogDestinationType: s3 in the same account, AWS authorizes
+  # delivery via an auto-managed bucket policy, not DeliverLogsPermissionArn (that property is
+  # only for CloudWatch Logs / cross-account Kinesis Firehose destinations).
+  VpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceId: !Ref Vpc
+      ResourceType: VPC
+      TrafficType: ALL
+      LogDestinationType: s3
+      LogDestination: !Sub "arn:aws:s3:::${FlowLogBucket}"
+      MaxAggregationInterval: 600
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-flowlog-vpc-ec1"
+
+  # ============================================================
+  # 2. Security Groups
+  # ============================================================
+  CommonSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-${EnvironmentName}-common-ec2-sg-ec1"
+      GroupDescription: Common Windows admin access (RDP) - via Client VPN / on-premise only
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref ClientVpnCidr
+          Description: RDP from Client VPN clients
+        # On-premise RDP is added by CommonSgOnPremRdp, conditional on the Site-to-Site VPN.
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+          Description: HTTPS to AWS APIs (Secrets Manager, SSM) via VPC interface endpoints
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-common-ec2-sg-ec1"
+
+  MssqlSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-${EnvironmentName}-mssql-ec2-sg-ec1"
+      GroupDescription: MSSQL (1433) - via Client VPN / on-premise / instance itself only
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1433
+          ToPort: 1433
+          CidrIp: !Ref ClientVpnCidr
+          Description: MSSQL from Client VPN clients
+        # On-premise MSSQL is added by MssqlSgOnPremMssql, conditional on the Site-to-Site VPN.
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+          Description: HTTPS to AWS APIs (Secrets Manager, SSM) via VPC interface endpoints
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-mssql-ec2-sg-ec1"
+
+  # On-premise ingress, added only when the Site-to-Site VPN is deployed. Kept as standalone
+  # resources rather than Fn::If entries inside SecurityGroupIngress so that every rule carries a
+  # statically visible Description (an Fn::If in the list hides it from compliance scanners).
+  CommonSgOnPremRdp:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      GroupId: !Ref CommonSg
+      IpProtocol: tcp
+      FromPort: 3389
+      ToPort: 3389
+      CidrIp: !Ref OnPremCidr
+      Description: RDP from on-premise network via the Site-to-Site VPN
+
+  MssqlSgOnPremMssql:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      GroupId: !Ref MssqlSg
+      IpProtocol: tcp
+      FromPort: 1433
+      ToPort: 1433
+      CidrIp: !Ref OnPremCidr
+      Description: MSSQL from on-premise network via the Site-to-Site VPN
+
+  ClientVpnSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-${EnvironmentName}-clientvpn-sg-ec1"
+      GroupDescription: AWS Client VPN endpoint - SAML SSO (Entra ID) ingress
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: Client VPN data channel (UDP 443) - endpoint must be internet-reachable for remote users
+      # No TCP 443 rule: the endpoint below is TransportProtocol udp, so a TCP data channel does not
+      # exist and the rule would be dead. No TCP 35001 rule either: the SAML self-service portal is
+      # AWS-hosted (self-service.clientvpn.amazonaws.com) and the 127.0.0.1:35001 sign-on URL is a
+      # loopback listener on the user's own machine - neither is traffic that reaches this SG.
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref VpcCidr
+          Description: Tunnel egress to the MSSQL host - RDP
+        - IpProtocol: tcp
+          FromPort: 1433
+          ToPort: 1433
+          CidrIp: !Ref VpcCidr
+          Description: Tunnel egress to the MSSQL host - MSSQL
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-clientvpn-sg-ec1"
+
+  # ============================================================
+  # 3. EC2 - MSSQL host (Windows Server 2022, client installs SQL Server)
+  # ============================================================
+  # Retained alongside MssqlInstance: the instance survives stack deletion, so destroying the only
+  # copy of its administrator password would leave a machine nobody can log into.
+  SysadmSecret:
+    Type: AWS::SecretsManager::Secret
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Ref AdminSecretName
+      Description: Local admin (sysadm) password for the MSSQL EC2 host
+      SecretString: !Ref AdminPassword
+
+  Ec2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: read-sysadm-secret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref SysadmSecret
+
+  Ec2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref Ec2Role
+
+  MssqlInstance:
+    Type: AWS::EC2::Instance
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    # The DB subnet has no NAT/IGW route, so UserData's Secrets Manager call only works once the
+    # interface endpoints exist. Without these DependsOn entries CloudFormation may launch the
+    # instance in parallel with them and the sysadm account is never created.
+    DependsOn:
+      - SecretsManagerEndpoint
+      - SsmEndpoint
+      - SsmMessagesEndpoint
+      - Ec2MessagesEndpoint
+    Properties:
+      InstanceType: !Ref InstanceType
+      EbsOptimized: true
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
+      KeyName: !Ref KeyPairName
+      ImageId: !Ref WindowsAmi
+      SubnetId: !Ref DbSubnetA
+      SecurityGroupIds:
+        - !Ref CommonSg
+        - !Ref MssqlSg
+      IamInstanceProfile: !Ref Ec2InstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 250
+            VolumeType: gp3
+            Encrypted: true
+        - DeviceName: /dev/sdb
+          Ebs:
+            VolumeSize: 4096
+            VolumeType: gp3
+            Encrypted: true
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+          $ErrorActionPreference = 'Stop'
+
+          # --- 1. Initialize the 4 TB data disk (EBS volume 2) and mount it as D: ---
+          $disk = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
+          if ($disk) {
+              Initialize-Disk -Number $disk.Number -PartitionStyle GPT
+              $partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter D
+              Format-Volume -DriveLetter D -FileSystem NTFS -AllocationUnitSize 65536 -NewFileSystemLabel 'SQLData' -Confirm:$false
+          }
+
+          # --- 2. Create the 'sysadm' local administrator (password read from Secrets Manager) ---
+          # Retry: the Secrets Manager interface endpoint may not be resolving the instant this runs.
+          # Fail loudly if it never succeeds - silently skipping would leave no way to log in.
+          $username = 'sysadm'
+          $secretId = '${AdminSecretName}'
+          $password = $null
+          foreach ($attempt in 1..10) {
+              $password = aws secretsmanager get-secret-value --secret-id $secretId --region ${AWS::Region} --query SecretString --output text
+              if (($LASTEXITCODE -eq 0) -and $password) { break }
+              Write-Output "Secrets Manager read failed (attempt $attempt of 10); retrying in 30s"
+              $password = $null
+              Start-Sleep -Seconds 30
+          }
+          if (-not $password) {
+              throw "Could not read secret '$secretId' after 10 attempts - sysadm NOT created. Check the Secrets Manager VPC endpoint and the instance profile."
+          }
+          $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+          if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+              # Idempotent: realign the local account with the secret if this ever re-runs.
+              Set-LocalUser -Name $username -Password $securePassword -PasswordNeverExpires $true
+          } else {
+              New-LocalUser -Name $username -Password $securePassword -FullName 'System Administrator' -Description 'Local admin for MSSQL host' -PasswordNeverExpires
+              Add-LocalGroupMember -Group 'Administrators' -Member $username
+          }
+
+          # --- 3. Windows Firewall: pre-open SQL Server port (client installs SQL Server) and RDP ---
+          New-NetFirewallRule -DisplayName 'MSSQL-TCP-1433' -Direction Inbound -Protocol TCP -LocalPort 1433 -Action Allow -ErrorAction SilentlyContinue
+          New-NetFirewallRule -DisplayName 'RDP-TCP-3389'  -Direction Inbound -Protocol TCP -LocalPort 3389  -Action Allow -ErrorAction SilentlyContinue
+
+          # --- 4. Frankfurt timezone ---
+          Set-TimeZone -Id 'W. Europe Standard Time'
+          </powershell>
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-mssql01-ec2-ec1a"
+
+  # --- VPC interface endpoints: the DB subnet has NO NAT/IGW route by design, so the instance
+  # needs these to reach Secrets Manager (sysadm password) and SSM (Session Manager) at all. ---
+  VpcEndpointSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-${EnvironmentName}-vpce-sg-ec1"
+      GroupDescription: HTTPS access from the VPC to interface endpoints (Secrets Manager, SSM)
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+          Description: HTTPS from resources in the VPC
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+          Description: Endpoint ENI response traffic within the VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-vpce-sg-ec1"
+
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      SubnetIds: [!Ref DbSubnetA]
+      SecurityGroupIds: [!Ref VpcEndpointSg]
+      PrivateDnsEnabled: true
+
+  SsmEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      SubnetIds: [!Ref DbSubnetA]
+      SecurityGroupIds: [!Ref VpcEndpointSg]
+      PrivateDnsEnabled: true
+
+  SsmMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      SubnetIds: [!Ref DbSubnetA]
+      SecurityGroupIds: [!Ref VpcEndpointSg]
+      PrivateDnsEnabled: true
+
+  Ec2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      SubnetIds: [!Ref DbSubnetA]
+      SecurityGroupIds: [!Ref VpcEndpointSg]
+      PrivateDnsEnabled: true
+
+  # ============================================================
+  # 4. AWS Client VPN (SAML / Microsoft Entra ID - client side)
+  # ============================================================
+  SamlProvider:
+    Type: AWS::IAM::SAMLProvider
+    Properties:
+      Name: !Sub "${ProjectName}-${EnvironmentName}-clientvpn-saml"
+      SamlMetadataDocument: !Ref SamlMetadataDocument
+
+  AcmCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: CreateAcmCertHostedZone
+    Properties:
+      DomainName: !Ref VpnDomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref VpnDomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  AcmCertificateManual:
+    Type: AWS::CertificateManager::Certificate
+    Condition: CreateAcmCertManual
+    Properties:
+      DomainName: !Ref VpnDomainName
+      ValidationMethod: DNS
+
+  # Client VPN connection logging uses AWS's own service-linked role for CloudWatch delivery -
+  # no customer-managed IAM role is needed (or supported) here.
+  ClientVpnLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "${ProjectName}-${EnvironmentName}-clientvpn-logs"
+      RetentionInDays: 90
+
+  ClientVpnEndpoint:
+    Type: AWS::EC2::ClientVpnEndpoint
+    Properties:
+      ClientCidrBlock: !Ref ClientVpnCidr
+      ServerCertificateArn: !If
+        - UseExistingCert
+        - !Ref ServerCertificateArn
+        - !If
+          - UseHostedZone
+          - !Ref AcmCertificate
+          - !Ref AcmCertificateManual
+      AuthenticationOptions:
+        - Type: federated-authentication
+          FederatedAuthentication:
+            SAMLProviderArn: !Ref SamlProvider
+            SelfServiceSAMLProviderArn: !Ref SamlProvider
+      ConnectionLogOptions:
+        Enabled: true
+        CloudwatchLogGroup: !Ref ClientVpnLogGroup
+      SplitTunnel: !If [SplitTunnelEnabled, true, false]
+      TransportProtocol: udp
+      VpnPort: 443
+      SecurityGroupIds:
+        - !Ref ClientVpnSg
+      TagSpecifications:
+        - ResourceType: client-vpn-endpoint
+          Tags:
+            - Key: Name
+              Value: !Sub "${ProjectName}-${EnvironmentName}-clientvpn-ec1"
+
+  ClientVpnAssocPriA:
+    Type: AWS::EC2::ClientVpnTargetNetworkAssociation
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      SubnetId: !Ref PriSubnetA
+  ClientVpnAssocPriC:
+    Type: AWS::EC2::ClientVpnTargetNetworkAssociation
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      SubnetId: !Ref PriSubnetC
+
+  # Route so VPN clients can reach the WHOLE VPC (incl. DB subnet), not just the /27 target subnets
+  ClientVpnRouteVpc:
+    Type: AWS::EC2::ClientVpnRoute
+    DependsOn:
+      - ClientVpnAssocPriA
+      - ClientVpnAssocPriC
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      DestinationCidrBlock: !Ref VpcCidr
+      TargetVpcSubnetId: !Ref PriSubnetA
+      Description: Route to the whole VPC via the private network
+
+  ClientVpnAuthRule:
+    Type: AWS::EC2::ClientVpnAuthorizationRule
+    DependsOn:
+      - ClientVpnAssocPriA
+      - ClientVpnAssocPriC
+    Properties:
+      ClientVpnEndpointId: !Ref ClientVpnEndpoint
+      TargetNetworkCidr: !Ref VpcCidr
+      AuthorizeAllGroups: true
+
+  # ============================================================
+  # 5. Site-to-Site IPSEC VPN (VPC <-> on-premise racing site)
+  # Entire section is conditional on CreateSiteToSiteVpn - see the OnPremCidr /
+  # CustomerGatewayIp parameters. Skipped when the client has not supplied those values.
+  # ============================================================
+  CustomerGateway:
+    Type: AWS::EC2::CustomerGateway
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      Type: ipsec.1
+      BgpAsn: 65000
+      IpAddress: !Ref CustomerGatewayIp
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-cgw-ec1"
+
+  VpnGateway:
+    Type: AWS::EC2::VPNGateway
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      Type: ipsec.1
+      AmazonSideAsn: 64512
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-vgw-ec1"
+
+  VpcVgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      VpcId: !Ref Vpc
+      VpnGatewayId: !Ref VpnGateway
+
+  VpnConnection:
+    Type: AWS::EC2::VPNConnection
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      Type: ipsec.1
+      CustomerGatewayId: !Ref CustomerGateway
+      VpnGatewayId: !Ref VpnGateway
+      StaticRoutesOnly: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${EnvironmentName}-vpn-conn-ec1"
+
+  # Static route to the on-premise network (propagated into pri/db route tables below)
+  VpnConnectionRouteOnPrem:
+    Type: AWS::EC2::VPNConnectionRoute
+    Condition: CreateSiteToSiteVpn
+    Properties:
+      DestinationCidrBlock: !Ref OnPremCidr
+      VpnConnectionId: !Ref VpnConnection
+
+  VpnPropagationPri:
+    Type: AWS::EC2::VPNGatewayRoutePropagation
+    Condition: CreateSiteToSiteVpn
+    DependsOn: VpcVgwAttachment
+    Properties:
+      RouteTableIds:
+        - !Ref PriRouteTable
+      VpnGatewayId: !Ref VpnGateway
+
+  VpnPropagationDb:
+    Type: AWS::EC2::VPNGatewayRoutePropagation
+    Condition: CreateSiteToSiteVpn
+    DependsOn: VpcVgwAttachment
+    Properties:
+      RouteTableIds:
+        - !Ref DbRouteTable
+      VpnGatewayId: !Ref VpnGateway
+
+# ============================================================
+# Outputs
+# ============================================================
+Outputs:
+  VpcId:
+    Value: !Ref Vpc
+  NatEip:
+    Value: !Ref NatEip
+    Description: Elastic IP of the NAT gateway (public subnet ec1a).
+  DbSubnetA:
+    Value: !Ref DbSubnetA
+  DbSubnetC:
+    Value: !Ref DbSubnetC
+  MssqlInstanceId:
+    Value: !Ref MssqlInstance
+  MssqlPrivateIp:
+    Value: !GetAtt MssqlInstance.PrivateIp
+    Description: RDP target for developers (in the db-ec1a /27, reachable via Client VPN / site-to-site).
+  FlowLogBucket:
+    Value: !Ref FlowLogBucket
+  SysadmSecretArn:
+    Value: !Ref SysadmSecret
+    Description: Secrets Manager secret holding the sysadm password.
+  ServerCertificateArn:
+    Value: !If
+      - UseExistingCert
+      - !Ref ServerCertificateArn
+      - !If
+        - UseHostedZone
+        - !Ref AcmCertificate
+        - !Ref AcmCertificateManual
+  SamlProviderArn:
+    Value: !Ref SamlProvider
+  ClientVpnEndpointId:
+    Value: !Ref ClientVpnEndpoint
+  ClientVpnLogGroup:
+    Value: !Ref ClientVpnLogGroup
+  CustomerGatewayId:
+    Condition: CreateSiteToSiteVpn
+    Value: !Ref CustomerGateway
+  VpnConnectionId:
+    Condition: CreateSiteToSiteVpn
+    Value: !Ref VpnConnection
+    Description: Download tunnel configuration from VPC console -> Site-to-Site VPN connections.
+  SiteToSiteVpnDeployed:
+    Value: !If [CreateSiteToSiteVpn, "true", "false"]
+    Description: >-
+      false means OnPremCidr / CustomerGatewayIp were empty, so the Site-to-Site VPN and the
+      on-premise security-group rules were skipped. Re-deploy with both values to add them.

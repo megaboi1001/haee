@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EntityDescriptor entityID="https://placeholder.invalid/aws-clientvpn" xmlns="urn:oasis:names:tc:SAML:2.0:metadata">
+  <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <KeyDescriptor use="signing">
+      <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+        <X509Data>
+          <X509Certificate>MIIDHTCCAgWgAwIBAgIUWRGlV54QrmspU6ReWrAg187yjpgwDQYJKoZIhvcNAQELBQAwHjEcMBoGA1UEAwwTcGxhY2Vob2xkZXIuaW52YWxpZDAeFw0yNjA4MTgwNjQ0MzFaFw0zNjA4MTUwNjQ0MzFaMB4xHDAaBgNVBAMME3BsYWNlaG9sZGVyLmludmFsaWQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCUx1Cz/40y158EHN76NfMJPJzZFCGT7TJmmH1ldX2G4oWMsdrl4ni+kybAZCjOHTOhQeIwCVSdSOvVaOqGzDtJZE3lgt4B4X04JWgb1SOkyVYlBeAAMxD68/F0QVwFCA1pMpaSPL4R91wZniRgC3FP0XOH/qT8qbtF1HaOPcvXJe03lOgzFcKoA2aD82G9weJZ2ngweO+1HJtTjeA8g/lUdKgHrCBYmNuhBHBDH079MupZn+SluHDWlB7TAOKGaghFBP8NhcZEoYevK55ogz72P3+psa11fnPjjWnjWiorMzW0d6TZcu50scgUx1QIRDVRrLm+lam7dwlhXaZR/A11AgMBAAGjUzBRMB0GA1UdDgQWBBR+yOeO/UIFmIo2UNw3xAgktSI6JTAfBgNVHSMEGDAWgBR+yOeO/UIFmIo2UNw3xAgktSI6JTAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA9c4E9mUwlWJdhdN74kT9PXU9quEdeKN7MVYReggw3LUUL5H1LnY6/7gxhMgynRxWxlXANG3FWuS1Dq/sLFYm4p/10puqWW0oqvwZZWGAVum0ODgl9DII0Sa04b39q3kBiXJUHMDuoAodmyFrjnfaRf11hmBy6+zDRi9R9dWOwDcMHd4Z+0z+223gvzfViNb2PHFeUoWQ8jTGHE5mz1TDIJbvsIjeB6QjpkBn2EHAkLX3fum2r0RFwuWGH6bro/BmD4fbQdTvGXo/8ddlDaHfy9ulb4gChSkMVbUOqXgM5wFeZpIbqY4qTTukeY4IGkDVCMwiY6z09a3V053bAm/5g</X509Certificate>
+        </X509Data>
+      </KeyInfo>
+    </KeyDescriptor>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://placeholder.invalid/sso"/>
+  </IDPSSODescriptor>
+</EntityDescriptor>
