@@ -10,7 +10,7 @@ This matches the requirements gathered in `Portfolio Collection Template - Asses
 
 | Area | Resources | Notes |
 |---|---|---|
-| **VPC** | `hmsg-rac-prd-vpc-ec1` (172.200.0.0/24) | Flow Logs → S3 (lifecycle 1 month → Glacier, expire 1 year). ⚠️ see [VPC CIDR warning](#-vpc-cidr-warning) |
+| **VPC** | `hmsg-rac-prd-vpc-ec1` (172.200.0.0/24) | ⚠️ see [VPC CIDR warning](#-vpc-cidr-warning) |
 | **Subnets** | 2 public (ec1a/ec1c) + 2 private (ec1a/ec1c) + 2 DB (ec1a/ec1c), all `/27` | Derived from `VpcCidr` via `Fn::Cidr` — changing `VpcCidr` re-derives them instead of breaking the stack. Dual-AZ per PRD design |
 | **Routing** | pub → IGW, pri → NAT, DB → (VPN only, no internet) | VGW propagation on pri/db |
 | **NAT** | `hmsg-rac-prd-NAT-pub-ec1` + EIP | In pub-ec1a |
@@ -21,7 +21,7 @@ This matches the requirements gathered in `Portfolio Collection Template - Asses
 | **ACM** | `vpn.hmg-racing.com` server certificate (DNS validation) | Or pass an existing issued cert ARN — a new cert is only requested when `ServerCertificateArn` is empty |
 | **Site-to-Site VPN** | `*-cgw-ec1` + `*-vgw-ec1` + `*-vpn-conn-ec1` (static routing) | **Optional** — skipped entirely unless *both* `OnPremCidr` and `CustomerGatewayIp` are supplied. See [Deploying without the client's values](#deploying-without-the-clients-values) |
 | **Secrets** | `hmsg-rac-prd-sysadm-password` | sysadm password stored in Secrets Manager (read by EC2 at first boot via the Secrets Manager VPC endpoint, not embedded in plaintext user data). `DeletionPolicy: Retain` — matches the instance, so deleting the stack can't strand a retained host without its password |
-| **IAM** | SSM role for EC2, SAML provider | S3 flow logs and Client VPN CloudWatch logs are authorized by AWS-managed bucket policy / service-linked role respectively — no custom IAM role needed for either |
+| **IAM** | SSM role for EC2, SAML provider | Client VPN CloudWatch logs use the AWS service-linked role — no custom IAM role needed |
 
 ## What is NOT in this template (client / 3rd-party responsibility)
 
@@ -244,7 +244,6 @@ Supplying only one of the two values silently skips the VPN rather than half-bui
   (replaces CGW + VPN connection; tunnel config must be re-shared with on-prem).
 - **DB instance has no internet egress** (by design, matches the Q&A sheet) — only reaches Secrets Manager/SSM via the VPC interface endpoints in that subnet, nothing else. SQL media must be staged via VPN. If Windows Update / external downloads are ever needed, add `0.0.0.0/0 → NAT` to the DB route table.
 - **Instance protected** from accidental deletion (`DeletionPolicy: Retain`). `SysadmSecret` is retained too, so a retained host never loses the only copy of its admin password.
-- **Flow log bucket is retained** (`DeletionPolicy: Retain`) — CloudFormation cannot delete an S3 bucket that still holds objects, so a stack teardown leaves `hmsg-rac-prd-flowlog-<acct>` behind with its logs. Empty it with `aws s3 rm s3://<bucket> --recursive` afterward (treat it as the flow-log archive).
 
 ### Rotating the sysadm password
 
@@ -275,7 +274,7 @@ Keep passing the *original* `AdminPassword` on subsequent `deploy` runs (or let 
 | Users can't sign in | Real SAML metadata not applied yet (placeholder). Run `aws iam update-saml-provider` with the real XML (see *Post-deployment*). Also confirm the Entra app Identifier/Reply URL values from the Q&A sheet. |
 | Can't reach DB over Client VPN | Confirm split-tunnel on; user connected; SG allows 1433 from 10.200.0.0/22; DB host firewall allows 1433. Client is UDP 443 — there is no TCP fallback. |
 | `sysadm` login fails on a fresh instance | UserData retries the Secrets Manager read 10× / 30s then throws. Check `C:\ProgramData\Amazon\EC2Launch\log\agent.log` (via `Administrator` + key pair, or Session Manager) and confirm the four VPC interface endpoints are `available`. |
-| Change set fails `AWS::EarlyValidation::ResourceExistenceCheck` on a redeploy | Usually the S3 flow-log bucket name is still taken by an orphaned bucket (or an external ref is missing: key pair / ACM cert / SSM AMI param). Purge the old bucket — delete all objects *and* delete markers, then `delete-bucket` — and retry. After a torn-down stack, check `aws s3api head-bucket --bucket hmsg-rac-prd-flowlog-<acct>`; if it responds, the name is not free yet. |
+| Change set fails `AWS::EarlyValidation::ResourceExistenceCheck` on a redeploy | An external reference is missing (key pair / ACM cert / SSM AMI param) or an S3 bucket name is still taken by an orphaned bucket. Verify each with `aws ec2 describe-key-pairs`, `aws acm describe-certificate`, `aws ssm get-parameter`; if a bucket name is blocked, purge it (delete all objects *and* delete markers, then `delete-bucket`). |
 | `ClientVpnEndpoint` fails "Security Groups cannot be specified without a VPC ID" | Template regression — the endpoint needs `VpcId` whenever `SecurityGroupIds` is set. Use the current template (fixed). |
 | `sysadm` password from the secret stops working | Credential drift — `AdminPassword` was changed on a stack update, which does not re-run UserData. See *Rotating the sysadm password*. |
 | Secret name in use | Stack was deleted and re-created within ~7 days (Secrets Manager soft-delete). Use a different `AdminSecretName` or purge the old secret with `aws secretsmanager restore-secret`. |
@@ -288,7 +287,6 @@ Keep passing the *original* `AdminPassword` on subsequent `deploy` runs (or let 
 - EC2 m7i.2xlarge + 4.25 TB gp3 EBS (~€0.01/GiB-mo → ~€43)
 - Client VPN endpoint (hourly) + Client VPN logs (CloudWatch ingestion)
 - Site-to-site VPN (hourly, 2 tunnels — **not billed if you deploy without `CustomerGatewayIp`/`OnPremCidr`**) + NAT gateway + transit data
-- VPC Flow Logs → S3 (encrypted, lifecycle: Glacier @ 30d, expire @ 365d)
 - 4x VPC interface endpoints (hourly + per-GB), single-AZ (`DbSubnetA` only)
 
 ---
@@ -297,7 +295,7 @@ Keep passing the *original* `AdminPassword` on subsequent `deploy` runs (or let 
 
 `cfn-lint` (region `eu-central-1`): **0 errors / 0 warnings.**
 
-`cfn-guard 3.2.0` against the `aws-guard-rules-registry` EC2 / S3 / ACM / Secrets Manager / IAM / CloudWatch rule sets (64 rule files): **14 distinct rules report findings.** None is a deployment blocker; each is either a rule limitation, inherent to the design, or optional hardening that has been deliberately deferred. Full list:
+`cfn-guard 3.2.0` against the `aws-guard-rules-registry` EC2 / S3 / ACM / Secrets Manager / IAM / CloudWatch rule sets (64 rule files): **9 distinct rules report findings.** None is a deployment blocker; each is either a rule limitation, inherent to the design, or optional hardening that has been deliberately deferred. Full list:
 
 | Finding | Resource | Why it's accepted |
 |---|---|---|
@@ -306,11 +304,6 @@ Keep passing the *original* `AdminPassword` on subsequent `deploy` runs (or let 
 | `RESTRICTED_INCOMING_TRAFFIC` | `CommonSg` | Flags port 3389 unconditionally, regardless of source. Ingress here is limited to `ClientVpnCidr` + `OnPremCidr`, never `0.0.0.0/0`. |
 | `NO_UNRESTRICTED_ROUTE_TO_IGW` | `PubRouteInternet` | The public subnets exist solely to host the NAT gateway, which requires a default route to the IGW. |
 | `IAM_NO_INLINE_POLICY_CHECK` | `Ec2Role` | One tightly-scoped inline policy (`secretsmanager:GetSecretValue` on a single secret ARN). A managed policy would be no more restrictive. |
-| `S3_BUCKET_VERSIONING_ENABLED` | `FlowLogBucket` | Versioning is `Suspended` — flow logs are write-once and lifecycle-expired at 365d; versioning would only add cost. |
-| `S3_BUCKET_REPLICATION_ENABLED` | `FlowLogBucket` | No cross-region DR requirement stated for flow logs. |
-| `S3_BUCKET_DEFAULT_LOCK_ENABLED` | `FlowLogBucket` | Object Lock conflicts with the 365-day expiry lifecycle rule. |
-| `S3_BUCKET_LOGGING_ENABLED` | `FlowLogBucket` | Server access logging on a log bucket needs a second bucket; not requested. |
-| `S3_BUCKET_NO_PUBLIC_RW_ACL` | `FlowLogBucket` | **Rule limitation** — it looks for an explicit `AccessControl` property. All four `PublicAccessBlockConfiguration` settings are `true`, so the bucket is fully private. |
 | `SECRETSMANAGER_USING_CMK` | `SysadmSecret` | Uses the AWS-managed key. Switch to a CMK if your compliance baseline requires it. |
 | `SECRETSMANAGER_ROTATION_ENABLED_CHECK` | `SysadmSecret` | Automatic rotation would desync from the Windows local account (see *Rotating the sysadm password*). Manual rotation is documented instead. |
 | `CLOUDWATCH_LOG_GROUP_ENCRYPTED` | `ClientVpnLogGroup` | Uses default CloudWatch encryption; add a KMS key if required. |
@@ -318,4 +311,4 @@ Keep passing the *original* `AdminPassword` on subsequent `deploy` runs (or let 
 
 Resolved during review: `EBS_OPTIMIZED_INSTANCE` and `SUBNET_AUTO_ASSIGN_PUBLIC_IP_DISABLED` both now pass.
 
-**Not verified:** no stack has been deployed, so layer-3 pre-deployment validation (`aws cloudformation describe-events --filters FailedEvents=true`) has not been run. Runtime concerns it would catch — AMI availability, key-pair existence, service quotas, IAM permissions of the deploying principal — remain unchecked.
+**Not verified (prod):** the sandbox test deployment caught and fixed three template bugs (`ClientVpnEndpoint` VpcId, `Default: ""` for the S2S parameters, and early-validation bucket-name collisions). The production stack in `440027026402` is still pending deploy — runtime concerns there (AMI availability, service quotas, IAM permissions of the deploying principal) remain unchecked until then.

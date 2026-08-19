@@ -493,7 +493,7 @@ txt(
     size=10.5,
     color=GRAY,
 )
-for i, name in enumerate(["Secrets Manager", "SSM", "CloudWatch", "S3 — flow logs"]):
+for i, name in enumerate(["Secrets Manager", "SSM", "CloudWatch"]):
     chip(s, 3.35 + i * 1.66, 5.32, 1.56, 0.5, name, fill=SKY_FILL, color=NAVY, size=11)
 txt(
     s,
@@ -501,7 +501,7 @@ txt(
     5.98,
     6.6,
     0.3,
-    "Flow logs → S3 (lifecycle 30d → Glacier, expire 1y) · Client VPN logs → CloudWatch (90d)",
+    "Client VPN logs → CloudWatch (90 d) · AWS API access via VPC interface endpoints only",
     size=10,
     color="9AA7B4",
 )
@@ -840,7 +840,7 @@ cols = [
         "Operate",
         [
             "sysadm password rotation: change on host first, then update the secret",
-            "Flow logs → S3; Client VPN logs → CloudWatch",
+            "Client VPN logs → CloudWatch (90 d)",
             "AWS API access from the DB subnet only via VPC endpoints",
             "Client VPN user management → HMGRS after handover",
         ],
@@ -1177,24 +1177,6 @@ inv_rows = [
         "AWS::EC2::NatGateway",
         "hmsg-rac-prd-NAT-pub-ec1",
         "Public subnet ec1a",
-        "-",
-        "",
-    ],
-    [
-        "Network",
-        "FlowLogBucket",
-        "AWS::S3::Bucket",
-        "hmsg-rac-prd-flowlog-<acct>",
-        "SSE-S3 · lifecycle: Glacier @30d · expire @365d · DeletionPolicy: Retain",
-        "-",
-        "VPC flow logs — retained on stack delete (empty manually)",
-    ],
-    [
-        "Network",
-        "VpcFlowLog",
-        "AWS::EC2::FlowLog",
-        "VPC flow log",
-        "ALL traffic → S3 · 10 min aggregation",
         "-",
         "",
     ],
@@ -1597,7 +1579,6 @@ out_rows = [
     ["DbSubnetA / DbSubnetC", "DB subnet IDs", ""],
     ["MssqlInstanceId", "EC2 instance ID", ""],
     ["MssqlPrivateIp", "Private IPv4", "RDP / SQL target"],
-    ["FlowLogBucket", "S3 bucket", "VPC flow logs"],
     ["SysadmSecretArn", "Secrets Manager ARN", "sysadm password"],
     ["ServerCertificateArn", "ACM certificate ARN", "Client VPN server cert"],
     ["SamlProviderArn", "IAM SAML provider ARN", ""],
@@ -1865,7 +1846,6 @@ chk_rows = [
     ["Requirements", "Receive Entra ID Federation Metadata XML", "Client"],
     ["Design", "Architecture design document approved (Week 1)", "Client / HMSG"],
     ["Network", "Deploy VPC / subnets / route tables / IGW / NAT", "HMSG"],
-    ["Network", "Verify flow logs → S3 and lifecycle rules", "HMSG"],
     [
         "Security",
         "Security groups allow RDP / MSSQL only from VPN + on-prem ranges",
@@ -2245,7 +2225,7 @@ sections = [
             "Do not attach a public IP to the EC2 instance.",
             "Entra ID application and user management are client-owned after handover.",
             "Temporary implementation IAM permissions are removed at project completion.",
-            "Flow logs: VPC → S3 (Glacier after 30 days, expiry after 365 days). Client VPN → CloudWatch (90 days).",
+            "Client VPN → CloudWatch (90 days).",
         ],
     ),
     ("h1", "5. Routine checks"),
@@ -2317,11 +2297,6 @@ sections2 = [
                 "EBS snapshots",
                 "HMSG / ops",
                 "Periodic snapshots of the root (250 GB) and data (4 TB) volumes — e.g. daily data-volume snapshot, weekly full",
-            ],
-            [
-                "Flow logs",
-                "AWS (automatic)",
-                "VPC flow logs → S3; lifecycle 30d → Glacier, expire 365d",
             ],
             [
                 "Client VPN logs",

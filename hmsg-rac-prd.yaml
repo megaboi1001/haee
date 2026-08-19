@@ -328,52 +328,6 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway
 
-  # --- VPC Flow Logs -> S3 (lifecycle: 1 month -> 1 year) ---
-  FlowLogBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      BucketName: !Sub "${ProjectName}-${EnvironmentName}-flowlog-${AWS::AccountId}"
-      VersioningConfiguration:
-        Status: Suspended
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      LifecycleConfiguration:
-        Rules:
-          - Id: FlowLogLifecycle
-            Status: Enabled
-            Transitions:
-              - StorageClass: GLACIER
-                TransitionInDays: 30
-            ExpirationInDays: 365
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-${EnvironmentName}-flowlog-${AWS::AccountId}"
-
-  # Note: no IAM role here. For LogDestinationType: s3 in the same account, AWS authorizes
-  # delivery via an auto-managed bucket policy, not DeliverLogsPermissionArn (that property is
-  # only for CloudWatch Logs / cross-account Kinesis Firehose destinations).
-  VpcFlowLog:
-    Type: AWS::EC2::FlowLog
-    Properties:
-      ResourceId: !Ref Vpc
-      ResourceType: VPC
-      TrafficType: ALL
-      LogDestinationType: s3
-      LogDestination: !Sub "arn:aws:s3:::${FlowLogBucket}"
-      MaxAggregationInterval: 600
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-${EnvironmentName}-flowlog-vpc-ec1"
-
   # ============================================================
   # 2. Security Groups
   # ============================================================
@@ -864,8 +818,6 @@ Outputs:
   MssqlPrivateIp:
     Value: !GetAtt MssqlInstance.PrivateIp
     Description: RDP target for developers (in the db-ec1a /27, reachable via Client VPN / site-to-site).
-  FlowLogBucket:
-    Value: !Ref FlowLogBucket
   SysadmSecretArn:
     Value: !Ref SysadmSecret
     Description: Secrets Manager secret holding the sysadm password.
