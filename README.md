@@ -29,7 +29,7 @@ This matches the requirements gathered in `Portfolio Collection Template - Asses
   - Identifier (Entity ID): `urn:amazon:webservices:clientvpn`
   - Reply URL: `https://self-service.clientvpn.amazonaws.com/api/auth/sso/saml`
   - Sign-on URL: `http://127.0.0.1:35001`
-- **Entra ID Federation Metadata XML** – the client generates it from the Entra app; **we import it** into an IAM SAML provider (stack update, see below).
+- **Entra ID Federation Metadata XML** – the client generates it from the Entra app; **we apply it** to the IAM SAML provider after deploy via `aws iam update-saml-provider` (see below — it's too large for a CFN parameter).
 - ~~**DNS records for `vpn.hmg-racing.com`**~~ – **not required.** Use a self-signed cert imported into ACM; see [Server certificate](#server-certificate). Only needed if you deliberately choose the public-ACM path.
 - **SQL Server 2019 installation** on the EC2 host (client does it; port 1433 TSG is pre-opened).
 - **Client VPN config distribution** to users (downloaded from console; users authenticate with Entra ID SSO).
@@ -205,20 +205,17 @@ Supplying only one of the two values silently skips the VPN rather than half-bui
 
 1. **Client VPN config**: VPC console → Client VPN → *Client VPN Endpoints* → select `hmsg-rac-prd-clientvpn-ec1` → **Download Client Configuration**. Distribute the `.ovpn` to the ≤10 users. They sign in via **Entra ID SSO** (MFA enforced by client's tenant policies).
 
-2. **SAML metadata – replace placeholder** (required before anyone can log in):
-   The stack deploys with a **placeholder** IAM SAML provider. When the client sends their Entra ID **Federation Metadata XML**:
+2. **SAML metadata – apply the real XML** (required before anyone can log in):
+   The stack deploys with an inline **placeholder** SAML provider. Real Entra ID Federation Metadata XML is ~13 KB — larger than the 4096-character CloudFormation parameter limit — so it is applied **out-of-band** to the IAM provider created by the stack:
    ```bash
-   aws cloudformation deploy \
-     --template-file hmsg-rac-prd.yaml \
-     --stack-name hmsg-rac-prd \
-     --region eu-central-1 \
-     --capabilities CAPABILITY_NAMED_IAM \
-     --parameter-overrides \
-       AdminPassword='<same-password-as-before>' \
-       ServerCertificateArn=arn:aws:acm:eu-central-1:<acct>:certificate/<id> \
-       SamlMetadataDocument="$(cat /path/to/client-metadata.xml)"
+   SAML_ARN=$(aws cloudformation describe-stacks --stack-name hmsg-rac-prd --region eu-central-1 \
+     --query 'Stacks[0].Outputs[?OutputKey==`SamlProviderArn`].OutputValue' --output text)
+
+   aws iam update-saml-provider \
+     --saml-provider-arn "$SAML_ARN" \
+     --saml-metadata-document file:///path/to/client-metadata.xml
    ```
-   (all other parameters are retained automatically by `deploy`).
+   The placeholder is re-applied only if the inline value in the template changes — a normal stack update leaves your real metadata untouched.
 
 3. **Site-to-site tunnel** *(only once `CustomerGatewayIp`/`OnPremCidr` are deployed)*: VPC console → Site-to-Site VPN → `hmsg-rac-prd-vpn-conn-ec1` → **Download Configuration** (vendor: *Generic*, platform: *Generic*). Give the tunnel 1/2 config (IPs + pre-shared keys) to the on-prem team to configure their firewall.
 
@@ -274,7 +271,7 @@ Keep passing the *original* `AdminPassword` on subsequent `deploy` runs (or let 
 | `SiteToSiteVpnDeployed` output is `false` | `CustomerGatewayIp` and `OnPremCidr` are all-or-nothing — one of them is empty. |
 | On-prem can't reach the DB after adding the VPN | Confirm the tunnel is `UP` on both ends, then check the `*-rtb-pri-ec1`/`*-rtb-db-ec1` route tables received the propagated on-prem route. |
 | `ClientVpnRoute`/`ClientVpnEndpoint` failure | Known CFN race with target-network association. Retry the stack update; if it persists, remove `ClientVpnRouteVpc`, deploy, then re-add via update. |
-| Users can't sign in | Real SAML metadata not uploaded yet (placeholder). Update `SamlMetadataDocument`. Also confirm Entra app Identifier/Reply URL values from the Q&A sheet. |
+| Users can't sign in | Real SAML metadata not applied yet (placeholder). Run `aws iam update-saml-provider` with the real XML (see *Post-deployment*). Also confirm the Entra app Identifier/Reply URL values from the Q&A sheet. |
 | Can't reach DB over Client VPN | Confirm split-tunnel on; user connected; SG allows 1433 from 10.200.0.0/22; DB host firewall allows 1433. Client is UDP 443 — there is no TCP fallback. |
 | `sysadm` login fails on a fresh instance | UserData retries the Secrets Manager read 10× / 30s then throws. Check `C:\ProgramData\Amazon\EC2Launch\log\agent.log` (via `Administrator` + key pair, or Session Manager) and confirm the four VPC interface endpoints are `available`. |
 | `sysadm` password from the secret stops working | Credential drift — `AdminPassword` was changed on a stack update, which does not re-run UserData. See *Rotating the sysadm password*. |

@@ -19,7 +19,7 @@ Metadata:
         Parameters: [InstanceType, KeyPairName, WindowsAmi, AdminPassword, AdminSecretName]
       - Label:
           default: "Client VPN (SAML / Entra ID)"
-        Parameters: [VpnDomainName, HostedZoneId, ServerCertificateArn, SamlMetadataDocument, SplitTunnel]
+        Parameters: [VpnDomainName, HostedZoneId, ServerCertificateArn, SplitTunnel]
     ParameterLabels:
       ProjectName:
         default: "Project name (name prefix)"
@@ -49,8 +49,6 @@ Metadata:
         default: "Route 53 Hosted Zone ID (optional)"
       ServerCertificateArn:
         default: "Existing ACM certificate ARN (optional)"
-      SamlMetadataDocument:
-        default: "Entra ID Federation Metadata XML"
       SplitTunnel:
         default: "Split tunnel"
 
@@ -142,12 +140,6 @@ Parameters:
     Description: >-
       Existing ISSUED ACM server certificate ARN for the Client VPN endpoint.
       Leave empty to create a new certificate in this stack.
-  SamlMetadataDocument:
-    Type: String
-    Description: >-
-      Federation Metadata XML of the client's Entra ID Enterprise Application (AWS ClientVPN).
-      The default is a PLACEHOLDER so the stack can deploy - replace it with the real XML
-      received from the client (stack update) before users can sign in.
   SplitTunnel:
     Type: String
     AllowedValues: [true, false]
@@ -683,7 +675,14 @@ Resources:
     Type: AWS::IAM::SAMLProvider
     Properties:
       Name: !Sub "${ProjectName}-${EnvironmentName}-clientvpn-saml"
-      SamlMetadataDocument: !Ref SamlMetadataDocument
+      # NOTE: SAML metadata cannot be a CFN parameter - String params are capped at
+      # 4096 chars and real Entra ID metadata (cert + claims + signature) is ~13 KB.
+      # Deploy with this placeholder, then apply the real XML AFTER deploy:
+      #   aws iam update-saml-provider --saml-provider-arn <SamlProviderArn output> \
+      #     --saml-metadata-document file://AWSClientVPN.xml
+      # The placeholder is re-applied on updates only if this inline value changes.
+      SamlMetadataDocument: |-
+        <?xml version="1.0" encoding="UTF-8"?><EntityDescriptor entityID="https://placeholder.invalid/aws-clientvpn" xmlns="urn:oasis:names:tc:SAML:2.0:metadata"><IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"><KeyDescriptor use="signing"><KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><X509Data><X509Certificate>MIIDHTCCAgWgAwIBAgIUWRGlV54QrmspU6ReWrAg187yjpgwDQYJKoZIhvcNAQELBQAwHjEcMBoGA1UEAwwTcGxhY2Vob2xkZXIuaW52YWxpZDAeFw0yNjA4MTgwNjQ0MzFaFw0zNjA4MTUwNjQ0MzFaMB4xHDAaBgNVBAMME3BsYWNlaG9sZGVyLmludmFsaWQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCUx1Cz/40y158EHN76NfMJPJzZFCGT7TJmmH1ldX2G4oWMsdrl4ni+kybAZCjOHTOhQeIwCVSdSOvVaOqGzDtJZE3lgt4B4X04JWgb1SOkyVYlBeAAMxD68/F0QVwFCA1pMpaSPL4R91wZniRgC3FP0XOH/qT8qbtF1HaOPcvXJe03lOgzFcKoA2aD82G9weJZ2ngweO+1HJtTjeA8g/lUdKgHrCBYmNuhBHBDH079MupZn+SluHDWlB7TAOKGaghFBP8NhcZEoYevK55ogz72P3+psa11fnPjjWnjWiorMzW0d6TZcu50scgUx1QIRDVRrLm+lam7dwlhXaZR/A11AgMBAAGjUzBRMB0GA1UdDgQWBBR+yOeO/UIFmIo2UNw3xAgktSI6JTAfBgNVHSMEGDAWgBR+yOeO/UIFmIo2UNw3xAgktSI6JTAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA9c4E9mUwlWJdhdN74kT9PXU9quEdeKN7MVYReggw3LUUL5H1LnY6/7gxhMgynRxWxlXANG3FWuS1Dq/sLFYm4p/10puqWW0oqvwZZWGAVum0ODgl9DII0Sa04b39q3kBiXJUHMDuoAodmyFrjnfaRf11hmBy6+zDRi9R9dWOwDcMHd4Z+0z+223gvzfViNb2PHFeUoWQ8jTGHE5mz1TDIJbvsIjeB6QjpkBn2EHAkLX3fum2r0RFwuWGH6bro/BmD4fbQdTvGXo/8ddlDaHfy9ulb4gChSkMVbUOqXgM5wFeZpIbqY4qTTukeY4IGkDVCMwiY6z09a3V053bAm/5g</X509Certificate></X509Data></KeyInfo></KeyDescriptor><SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://placeholder.invalid/sso"/></IDPSSODescriptor></EntityDescriptor>
 
   AcmCertificate:
     Type: AWS::CertificateManager::Certificate

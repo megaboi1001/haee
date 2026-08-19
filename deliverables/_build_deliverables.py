@@ -5,6 +5,7 @@ Design system:
   Hyundai-ish corporate palette: navy #002C5F, blue accent #00AAD2,
   amber #F5A623, light backgrounds #F2F7FB / #E8F4FA, gray text #4A4A4A.
 """
+
 from __future__ import annotations
 
 import math
@@ -59,8 +60,20 @@ def _set_font(run, size=14, bold=False, color=C(GRAY), italic=False):
     f.name = "Calibri"
 
 
-def txt(slide, x, y, w, h, text, size=14, bold=False, color=GRAY,
-        align=PP_ALIGN.LEFT, valign=MSO_ANCHOR.TOP, wrap=True):
+def txt(
+    slide,
+    x,
+    y,
+    w,
+    h,
+    text,
+    size=14,
+    bold=False,
+    color=GRAY,
+    align=PP_ALIGN.LEFT,
+    valign=MSO_ANCHOR.TOP,
+    wrap=True,
+):
     box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = box.text_frame
     tf.word_wrap = wrap
@@ -103,8 +116,12 @@ def bullets(slide, x, y, w, h, items, size=13.5, color=GRAY, gap=4, marker="\u20
             pPr.append(buChar)
         r = p.add_run()
         r.text = "  " + text if level else text
-        _set_font(r, size=size if level == 0 else size - 1.5, color=color,
-                  bold=(level == 0 and False))
+        _set_font(
+            r,
+            size=size if level == 0 else size - 1.5,
+            color=color,
+            bold=(level == 0 and False),
+        )
     return box
 
 
@@ -129,9 +146,23 @@ def shape(slide, kind, x, y, w, h, fill=LIGHT, line=BLUE, line_w=1.0, radius=Non
     return sp
 
 
-def chip(slide, x, y, w, h, text, fill=SKY_FILL, color=NAVY, size=11.5,
-         bold=True, line=BLUE, align=PP_ALIGN.CENTER):
-    sp = shape(slide, MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h, fill=fill, line=line, radius=0.5)
+def chip(
+    slide,
+    x,
+    y,
+    w,
+    h,
+    text,
+    fill=SKY_FILL,
+    color=NAVY,
+    size=11.5,
+    bold=True,
+    line=BLUE,
+    align=PP_ALIGN.CENTER,
+):
+    sp = shape(
+        slide, MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h, fill=fill, line=line, radius=0.5
+    )
     tf = sp.text_frame
     tf.word_wrap = True
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -145,21 +176,27 @@ def chip(slide, x, y, w, h, text, fill=SKY_FILL, color=NAVY, size=11.5,
 
 
 def arrow(slide, x1, y1, x2, y2, color=NAVY, width=2.0, dash=None, both=False):
-    conn = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT,
-                                      Inches(x1), Inches(y1), Inches(x2), Inches(y2))
+    conn = slide.shapes.add_connector(
+        MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2)
+    )
     conn.line.color.rgb = C(color)
     conn.line.width = Pt(width)
     if dash:
         from pptx.enum.dml import MSO_LINE
+
         conn.line.dash_style = MSO_LINE.DASH
     ln = conn.line._get_or_add_ln()
     for tag in ("a:headEnd", "a:tailEnd"):
         for el in ln.findall(qn(tag)):
             ln.remove(el)
-    tail = ln.makeelement(qn("a:tailEnd"), {"type": "triangle", "w": "med", "len": "med"})
+    tail = ln.makeelement(
+        qn("a:tailEnd"), {"type": "triangle", "w": "med", "len": "med"}
+    )
     ln.append(tail)
     if both:
-        head = ln.makeelement(qn("a:headEnd"), {"type": "triangle", "w": "med", "len": "med"})
+        head = ln.makeelement(
+            qn("a:headEnd"), {"type": "triangle", "w": "med", "len": "med"}
+        )
         ln.append(head)
     return conn
 
@@ -171,10 +208,27 @@ def title_bar(slide, kicker, title):
 
 
 def footer(slide, n, total):
-    txt(slide, 0.55, 7.08, 9.0, 0.3,
-        f"{PROJECT} · {STACK} · {REGION}", size=9, color="9AA7B4")
-    txt(slide, 11.3, 7.08, 1.5, 0.3, f"{n:02d} / {total:02d}",
-        size=9, color="9AA7B4", align=PP_ALIGN.RIGHT)
+    txt(
+        slide,
+        0.55,
+        7.08,
+        9.0,
+        0.3,
+        f"{PROJECT} · {STACK} · {REGION}",
+        size=9,
+        color="9AA7B4",
+    )
+    txt(
+        slide,
+        11.3,
+        7.08,
+        1.5,
+        0.3,
+        f"{n:02d} / {total:02d}",
+        size=9,
+        color="9AA7B4",
+        align=PP_ALIGN.RIGHT,
+    )
 
 
 prs = Presentation()
@@ -187,15 +241,62 @@ TOTAL = 8
 s = prs.slides.add_slide(BLANK)
 shape(s, MSO_SHAPE.RECTANGLE, -0.02, -0.02, 13.38, 7.54, fill=NAVY, line=None)
 shape(s, MSO_SHAPE.RECTANGLE, 0.0, 4.62, 13.38, 0.06, fill=AMBER, line=None)
-txt(s, 0.9, 1.15, 11.5, 0.4, "PRD · AWS ARCHITECTURE DESIGN DOCUMENT", size=13, bold=True, color=SKY)
+txt(
+    s,
+    0.9,
+    1.15,
+    11.5,
+    0.4,
+    "PRD · AWS ARCHITECTURE DESIGN DOCUMENT",
+    size=13,
+    bold=True,
+    color=SKY,
+)
 txt(s, 0.9, 1.55, 11.6, 1.3, "HMSG WEC Racing", size=52, bold=True, color=WHITE)
-txt(s, 0.9, 2.85, 11.6, 1.0,
+txt(
+    s,
+    0.9,
+    2.85,
+    11.6,
+    1.0,
     "Windows MSSQL host · AWS Client VPN (SAML / Entra ID) · Site-to-Site VPN",
-    size=19, color="D8E4F0")
-chip(s, 0.9, 4.0, 2.6, 0.5, "eu-central-1 · Frankfurt", fill=SKY_FILL, color=NAVY, size=12)
+    size=19,
+    color="D8E4F0",
+)
+chip(
+    s,
+    0.9,
+    4.0,
+    2.6,
+    0.5,
+    "eu-central-1 · Frankfurt",
+    fill=SKY_FILL,
+    color=NAVY,
+    size=12,
+)
 chip(s, 3.65, 4.0, 2.35, 0.5, f"Stack {STACK}", fill=SKY_FILL, color=NAVY, size=12)
-chip(s, 6.15, 4.0, 3.05, 0.5, "Week 1 deliverable", fill=AMBER_FILL, color=NAVY, size=12, line=AMBER)
-txt(s, 0.9, 6.7, 11.5, 0.35, f"Prepared by the HAEE Cloud Team · {TODAY}", size=11, color="9FB4C8")
+chip(
+    s,
+    6.15,
+    4.0,
+    3.05,
+    0.5,
+    "Week 1 deliverable",
+    fill=AMBER_FILL,
+    color=NAVY,
+    size=12,
+    line=AMBER,
+)
+txt(
+    s,
+    0.9,
+    6.7,
+    11.5,
+    0.35,
+    f"Prepared by the HAEE Cloud Team · {TODAY}",
+    size=11,
+    color="9FB4C8",
+)
 
 # ---------------------------------------------------------------- Slide 2
 s = prs.slides.add_slide(BLANK)
@@ -219,68 +320,244 @@ footer(s, 2, TOTAL)
 # ---------------------------------------------------------------- Slide 3
 s = prs.slides.add_slide(BLANK)
 title_bar(s, "01 · Requirements", "Requirements at a glance")
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 1.6, 6.1, 3.6, fill=WHITE, line=BORDER, radius=0.045)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 1.6, 6.1, 0.16, fill=NAVY, line=None, radius=0.5)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    1.6,
+    6.1,
+    3.6,
+    fill=WHITE,
+    line=BORDER,
+    radius=0.045,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    1.6,
+    6.1,
+    0.16,
+    fill=NAVY,
+    line=None,
+    radius=0.5,
+)
 txt(s, 0.85, 1.78, 5.5, 0.35, "Scope of this build", size=15, bold=True, color=NAVY)
-bullets(s, 0.9, 2.3, 5.5, 2.7, [
-    "One Windows Server 2022 EC2 instance — m7i.2xlarge (8 vCPU / 32 GiB)",
-    "Root 250 GB + data 4 TB (D: · NTFS · 64K) — SQL Server installed by the client",
-    "No public IP and no internet egress on the DB host",
-    "Private access only: Client VPN for developers, optional Site-to-Site VPN for on-prem",
-], size=13.5)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 6.95, 1.6, 5.85, 3.6, fill=WHITE, line=BORDER, radius=0.045)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 6.95, 1.6, 5.85, 0.16, fill=BLUE, line=None, radius=0.5)
-txt(s, 7.25, 1.78, 5.3, 0.35, "Client-side responsibilities", size=15, bold=True, color=NAVY)
-bullets(s, 7.3, 2.3, 5.3, 2.7, [
-    "Microsoft Entra ID Enterprise Application (SAML federation)",
-    "Entra ID Federation Metadata XML",
-    "CustomerGatewayIp + OnPremCidr (enables the Site-to-Site VPN)",
-    "SQL Server installation on the EC2 host",
-    "VPN user management after handover",
-], size=13.5)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 5.5, 12.25, 1.35, fill=AMBER_FILL, line=AMBER, radius=0.09)
+bullets(
+    s,
+    0.9,
+    2.3,
+    5.5,
+    2.7,
+    [
+        "One Windows Server 2022 EC2 instance — m7i.2xlarge (8 vCPU / 32 GiB)",
+        "Root 250 GB + data 4 TB (D: · NTFS · 64K) — SQL Server installed by the client",
+        "No public IP and no internet egress on the DB host",
+        "Private access only: Client VPN for developers, optional Site-to-Site VPN for on-prem",
+    ],
+    size=13.5,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    6.95,
+    1.6,
+    5.85,
+    3.6,
+    fill=WHITE,
+    line=BORDER,
+    radius=0.045,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    6.95,
+    1.6,
+    5.85,
+    0.16,
+    fill=BLUE,
+    line=None,
+    radius=0.5,
+)
+txt(
+    s,
+    7.25,
+    1.78,
+    5.3,
+    0.35,
+    "Client-side responsibilities",
+    size=15,
+    bold=True,
+    color=NAVY,
+)
+bullets(
+    s,
+    7.3,
+    2.3,
+    5.3,
+    2.7,
+    [
+        "Microsoft Entra ID Enterprise Application (SAML federation)",
+        "Entra ID Federation Metadata XML",
+        "CustomerGatewayIp + OnPremCidr (enables the Site-to-Site VPN)",
+        "SQL Server installation on the EC2 host",
+        "VPN user management after handover",
+    ],
+    size=13.5,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    5.5,
+    12.25,
+    1.35,
+    fill=AMBER_FILL,
+    line=AMBER,
+    radius=0.09,
+)
 txt(s, 0.9, 5.62, 11.7, 0.32, "Constraints & notes", size=12.5, bold=True, color=NAVY)
-bullets(s, 0.9, 5.96, 11.7, 0.85, [
-    "VPC 172.200.0.0/24 is not RFC1918 private space — confirm with the client, or deploy with 172.20.0.0/24 instead.",
-    "Up to 10 developers access via Client VPN · Entra ID MFA is the client tenant's policy.",
-], size=11.5, gap=2)
+bullets(
+    s,
+    0.9,
+    5.96,
+    11.7,
+    0.85,
+    [
+        "VPC 172.200.0.0/24 is not RFC1918 private space — confirm with the client, or deploy with 172.20.0.0/24 instead.",
+        "Up to 10 developers access via Client VPN · Entra ID MFA is the client tenant's policy.",
+    ],
+    size=11.5,
+    gap=2,
+)
 footer(s, 3, TOTAL)
 
 # ---------------------------------------------------------------- Slide 4
 s = prs.slides.add_slide(BLANK)
 title_bar(s, "02 · Architecture", "Target architecture")
 # AWS boundary
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 3.15, 1.5, 6.95, 4.95, fill="F7FAFD", line=NAVY, line_w=1.5, radius=0.03)
-txt(s, 3.35, 1.56, 6.6, 0.3, "AWS Cloud · VPC hmsg-rac-prd-vpc-ec1 — 172.200.0.0/24",
-    size=11.5, bold=True, color=NAVY)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    3.15,
+    1.5,
+    6.95,
+    4.95,
+    fill="F7FAFD",
+    line=NAVY,
+    line_w=1.5,
+    radius=0.03,
+)
+txt(
+    s,
+    3.35,
+    1.56,
+    6.6,
+    0.3,
+    "AWS Cloud · VPC hmsg-rac-prd-vpc-ec1 — 172.200.0.0/24",
+    size=11.5,
+    bold=True,
+    color=NAVY,
+)
 rows = [
     (2.02, SKY_FILL, BLUE, "PUBLIC · pub-ec1a / pub-ec1c — NAT gateway + Elastic IP"),
-    (2.92, GREEN_FILL, GREEN, "PRIVATE · pri-ec1a / pri-ec1c — Client VPN target networks"),
+    (
+        2.92,
+        GREEN_FILL,
+        GREEN,
+        "PRIVATE · pri-ec1a / pri-ec1c — Client VPN target networks",
+    ),
     (3.82, AMBER_FILL, AMBER, "DB · db-ec1a / db-ec1c — MSSQL host (m7i.2xlarge)"),
 ]
 for y, fill, line, text in rows:
-    shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 3.35, y, 6.55, 0.68, fill=fill, line=line, radius=0.12)
+    shape(
+        s,
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        3.35,
+        y,
+        6.55,
+        0.68,
+        fill=fill,
+        line=line,
+        radius=0.12,
+    )
     txt(s, 3.55, y + 0.17, 6.2, 0.4, text, size=12, bold=True, color=NAVY)
 # services
-txt(s, 3.35, 5.02, 6.6, 0.28, "VPC interface endpoints (Secrets Manager · SSM · SSM Messages · EC2 Messages)",
-    size=10.5, color=GRAY)
+txt(
+    s,
+    3.35,
+    5.02,
+    6.6,
+    0.28,
+    "VPC interface endpoints (Secrets Manager · SSM · SSM Messages · EC2 Messages)",
+    size=10.5,
+    color=GRAY,
+)
 for i, name in enumerate(["Secrets Manager", "SSM", "CloudWatch", "S3 — flow logs"]):
     chip(s, 3.35 + i * 1.66, 5.32, 1.56, 0.5, name, fill=SKY_FILL, color=NAVY, size=11)
-txt(s, 3.35, 5.98, 6.6, 0.3,
+txt(
+    s,
+    3.35,
+    5.98,
+    6.6,
+    0.3,
     "Flow logs → S3 (lifecycle 30d → Glacier, expire 1y) · Client VPN logs → CloudWatch (90d)",
-    size=10, color="9AA7B4")
+    size=10,
+    color="9AA7B4",
+)
 # on-prem
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 10.45, 2.6, 2.55, 1.05, fill="F2F2F2", line=GRAY, radius=0.08)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    10.45,
+    2.6,
+    2.55,
+    1.05,
+    fill="F2F2F2",
+    line=GRAY,
+    radius=0.08,
+)
 txt(s, 10.6, 2.72, 2.3, 0.32, "On-prem racing site", size=13, bold=True, color=NAVY)
-txt(s, 10.6, 3.05, 2.3, 0.5, "Hyundai firewall\nIPsec.1 · static", size=10.5, color=GRAY)
+txt(
+    s, 10.6, 3.05, 2.3, 0.5, "Hyundai firewall\nIPsec.1 · static", size=10.5, color=GRAY
+)
 chip(s, 10.19, 3.32, 0.55, 0.3, "VGW", fill=NAVY, color=WHITE, size=9, line=None)
 arrow(s, 10.45, 3.13, 10.62, 3.45, color=GRAY, width=1.75, dash=True)
-txt(s, 10.35, 3.75, 2.6, 0.55, "Site-to-Site VPN\nonly when on-prem values are supplied", size=10, color="9AA7B4")
+txt(
+    s,
+    10.35,
+    3.75,
+    2.6,
+    0.55,
+    "Site-to-Site VPN\nonly when on-prem values are supplied",
+    size=10,
+    color="9AA7B4",
+)
 # developers + client vpn
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.5, 2.1, 2.2, 0.9, fill="F2F2F2", line=GRAY, radius=0.08)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.5,
+    2.1,
+    2.2,
+    0.9,
+    fill="F2F2F2",
+    line=GRAY,
+    radius=0.08,
+)
 txt(s, 0.65, 2.22, 1.95, 0.3, "Developers (≤10)", size=13, bold=True, color=NAVY)
 txt(s, 0.65, 2.55, 1.95, 0.4, "Entra ID SSO · MFA", size=10.5, color=GRAY)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.5, 3.6, 2.2, 1.1, fill=SKY_FILL, line=BLUE, radius=0.08)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.5,
+    3.6,
+    2.2,
+    1.1,
+    fill=SKY_FILL,
+    line=BLUE,
+    radius=0.08,
+)
 txt(s, 0.65, 3.72, 1.95, 0.3, "AWS Client VPN", size=13, bold=True, color=NAVY)
 txt(s, 0.65, 4.05, 1.95, 0.55, "UDP 443 · SAML\nsplit tunnel", size=10.5, color=GRAY)
 arrow(s, 1.6, 3.0, 1.6, 3.6, color=NAVY, width=1.75)
@@ -292,39 +569,137 @@ footer(s, 4, TOTAL)
 s = prs.slides.add_slide(BLANK)
 title_bar(s, "03 · Security", "Network & security design")
 cards = [
-    (0.55, 1.6, "Client VPN SG", SKY_FILL, BLUE,
-     ["UDP 443 in — 0.0.0.0/0 (endpoint must be reachable)",
-      "egress 3389 / 1433 → VPC CIDR (tunnel traffic)"]),
-    (3.4, 1.6, "Common SG — RDP", GREEN_FILL, GREEN,
-     ["TCP 3389 in — 10.200.0.0/22 (Client VPN)",
-      "optional: on-prem CIDR via Site-to-Site VPN"]),
-    (6.25, 1.6, "MSSQL SG — 1433", AMBER_FILL, AMBER,
-     ["TCP 1433 in — 10.200.0.0/22 (Client VPN)",
-      "optional: on-prem CIDR via Site-to-Site VPN"]),
-    (9.1, 1.6, "VPC endpoint SG", "ECEFF3", GRAY,
-     ["TCP 443 in — VPC CIDR only",
-      "Response traffic to endpoint ENIs"]),
+    (
+        0.55,
+        1.6,
+        "Client VPN SG",
+        SKY_FILL,
+        BLUE,
+        [
+            "UDP 443 in — 0.0.0.0/0 (endpoint must be reachable)",
+            "egress 3389 / 1433 → VPC CIDR (tunnel traffic)",
+        ],
+    ),
+    (
+        3.4,
+        1.6,
+        "Common SG — RDP",
+        GREEN_FILL,
+        GREEN,
+        [
+            "TCP 3389 in — 10.200.0.0/22 (Client VPN)",
+            "optional: on-prem CIDR via Site-to-Site VPN",
+        ],
+    ),
+    (
+        6.25,
+        1.6,
+        "MSSQL SG — 1433",
+        AMBER_FILL,
+        AMBER,
+        [
+            "TCP 1433 in — 10.200.0.0/22 (Client VPN)",
+            "optional: on-prem CIDR via Site-to-Site VPN",
+        ],
+    ),
+    (
+        9.1,
+        1.6,
+        "VPC endpoint SG",
+        "ECEFF3",
+        GRAY,
+        ["TCP 443 in — VPC CIDR only", "Response traffic to endpoint ENIs"],
+    ),
 ]
 for x, y, title, fill, line, lines in cards:
-    shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, x, y, 2.6, 2.15, fill=WHITE, line=BORDER, radius=0.06)
-    shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, x, y, 2.6, 0.55, fill=fill, line=None, radius=0.35)
+    shape(
+        s,
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        x,
+        y,
+        2.6,
+        2.15,
+        fill=WHITE,
+        line=BORDER,
+        radius=0.06,
+    )
+    shape(
+        s,
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        x,
+        y,
+        2.6,
+        0.55,
+        fill=fill,
+        line=None,
+        radius=0.35,
+    )
     txt(s, x + 0.18, y + 0.12, 2.3, 0.35, title, size=13, bold=True, color=NAVY)
     bullets(s, x + 0.2, y + 0.72, 2.25, 1.35, lines, size=10.5, gap=4)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 4.1, 12.25, 2.2, fill=LIGHT, line=BORDER, radius=0.05)
-txt(s, 0.9, 4.25, 11.6, 0.32, "EC2 hardening & guardrails", size=12.5, bold=True, color=NAVY)
-bullets(s, 0.9, 4.62, 11.6, 1.55, [
-    "EC2: IMDSv2 required · EBS volumes encrypted · no public IP · termination protected (DeletionPolicy: Retain)",
-    "Windows Firewall: RDP 3389 and MSSQL 1433 pre-opened (SQL Server installed later by the client)",
-    "Data volume D: formatted NTFS 64K, labelled SQLData — SQL data / log files go here",
-    "AWS API access only via VPC interface endpoints — the DB subnet has no NAT / IGW route (by design)",
-], size=11.5, gap=3)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    4.1,
+    12.25,
+    2.2,
+    fill=LIGHT,
+    line=BORDER,
+    radius=0.05,
+)
+txt(
+    s,
+    0.9,
+    4.25,
+    11.6,
+    0.32,
+    "EC2 hardening & guardrails",
+    size=12.5,
+    bold=True,
+    color=NAVY,
+)
+bullets(
+    s,
+    0.9,
+    4.62,
+    11.6,
+    1.55,
+    [
+        "EC2: IMDSv2 required · EBS volumes encrypted · no public IP · termination protected (DeletionPolicy: Retain)",
+        "Windows Firewall: RDP 3389 and MSSQL 1433 pre-opened (SQL Server installed later by the client)",
+        "Data volume D: formatted NTFS 64K, labelled SQLData — SQL data / log files go here",
+        "AWS API access only via VPC interface endpoints — the DB subnet has no NAT / IGW route (by design)",
+    ],
+    size=11.5,
+    gap=3,
+)
 footer(s, 5, TOTAL)
 
 # ---------------------------------------------------------------- Slide 6
 s = prs.slides.add_slide(BLANK)
 title_bar(s, "04 · VPN", "VPN design — Client VPN · Site-to-Site")
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 1.6, 6.1, 3.3, fill=WHITE, line=BORDER, radius=0.045)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 1.6, 6.1, 0.16, fill=BLUE, line=None, radius=0.5)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    1.6,
+    6.1,
+    3.3,
+    fill=WHITE,
+    line=BORDER,
+    radius=0.045,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    1.6,
+    6.1,
+    0.16,
+    fill=BLUE,
+    line=None,
+    radius=0.5,
+)
 txt(s, 0.85, 1.78, 5.5, 0.35, "AWS Client VPN", size=15, bold=True, color=NAVY)
 vpn_rows = [
     ("Client CIDR", "10.200.0.0/22"),
@@ -340,18 +715,77 @@ for k, v in vpn_rows:
     txt(s, 0.9, y, 2.35, 0.3, k, size=11, bold=True, color="7C8B99")
     txt(s, 3.3, y, 3.1, 0.3, v, size=11, color=GRAY)
     y += 0.385
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 6.95, 1.6, 5.85, 3.3, fill=WHITE, line=BORDER, radius=0.045)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 6.95, 1.6, 5.85, 0.16, fill=AMBER, line=None, radius=0.5)
-txt(s, 7.25, 1.78, 5.3, 0.35, "Site-to-Site VPN (optional)", size=15, bold=True, color=NAVY)
-bullets(s, 7.3, 2.3, 5.25, 2.5, [
-    "Created only when the client supplies CustomerGatewayIp + OnPremCidr (add-only stack update)",
-    "Customer gateway ipsec.1 · static routing · BGP ASN 65000",
-    "Routes propagated to the private and DB route tables",
-    "Tunnel configuration downloaded from the VPC console and shared with the on-prem team",
-    "If the race site moves (new public IP), the tunnel is replaced and re-configured",
-], size=12, gap=4)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 5.15, 12.25, 1.15, fill=SKY_FILL, line=BLUE, radius=0.08)
-txt(s, 0.9, 5.3, 11.6, 0.3, "SAML values for the client's Entra ID Enterprise Application", size=12.5, bold=True, color=NAVY)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    6.95,
+    1.6,
+    5.85,
+    3.3,
+    fill=WHITE,
+    line=BORDER,
+    radius=0.045,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    6.95,
+    1.6,
+    5.85,
+    0.16,
+    fill=AMBER,
+    line=None,
+    radius=0.5,
+)
+txt(
+    s,
+    7.25,
+    1.78,
+    5.3,
+    0.35,
+    "Site-to-Site VPN (optional)",
+    size=15,
+    bold=True,
+    color=NAVY,
+)
+bullets(
+    s,
+    7.3,
+    2.3,
+    5.25,
+    2.5,
+    [
+        "Created only when the client supplies CustomerGatewayIp + OnPremCidr (add-only stack update)",
+        "Customer gateway ipsec.1 · static routing · BGP ASN 65000",
+        "Routes propagated to the private and DB route tables",
+        "Tunnel configuration downloaded from the VPC console and shared with the on-prem team",
+        "If the race site moves (new public IP), the tunnel is replaced and re-configured",
+    ],
+    size=12,
+    gap=4,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    5.15,
+    12.25,
+    1.15,
+    fill=SKY_FILL,
+    line=BLUE,
+    radius=0.08,
+)
+txt(
+    s,
+    0.9,
+    5.3,
+    11.6,
+    0.3,
+    "SAML values for the client's Entra ID Enterprise Application",
+    size=12.5,
+    bold=True,
+    color=NAVY,
+)
 chips = [
     ("Identifier", "urn:amazon:webservices:clientvpn"),
     ("Reply URL", "https://self-service.clientvpn.amazonaws.com/api/auth/sso/saml"),
@@ -359,7 +793,19 @@ chips = [
 ]
 x = 0.9
 for k, v in chips:
-    chip(s, x, 5.68, (11.6 - 0.6) / 3, 0.5, f"{k}: {v}", fill=WHITE, color=GRAY, size=9.5, bold=False, line=BORDER)
+    chip(
+        s,
+        x,
+        5.68,
+        (11.6 - 0.6) / 3,
+        0.5,
+        f"{k}: {v}",
+        fill=WHITE,
+        color=GRAY,
+        size=9.5,
+        bold=False,
+        line=BORDER,
+    )
     x += (11.6 - 0.6) / 3 + 0.3
 footer(s, 6, TOTAL)
 
@@ -367,61 +813,190 @@ footer(s, 6, TOTAL)
 s = prs.slides.add_slide(BLANK)
 title_bar(s, "05 · Ops", "Deployment & operations")
 cols = [
-    (0.55, NAVY, "Deploy", [
-        "CloudFormation stack " + STACK,
-        "CAPABILITY_NAMED_IAM required",
-        "NoEcho sysadm password → Secrets Manager",
-        "Site-to-Site VPN added later via a second deploy — no downtime",
-    ]),
-    (4.65, BLUE, "Access", [
-        "RDP via Client VPN to the private IP (sysadm)",
-        "SSM Session Manager as backup path",
-        "No public IP — internet reachable from VPC only through NAT (private subnets)",
-    ]),
-    (8.75, AMBER, "Operate", [
-        "sysadm password rotation: change on host first, then update the secret",
-        "Flow logs → S3; Client VPN logs → CloudWatch",
-        "AWS API access from the DB subnet only via VPC endpoints",
-        "Client VPN user management → HMGRS after handover",
-    ]),
+    (
+        0.55,
+        NAVY,
+        "Deploy",
+        [
+            "CloudFormation stack " + STACK,
+            "CAPABILITY_NAMED_IAM required",
+            "NoEcho sysadm password → Secrets Manager",
+            "Site-to-Site VPN added later via a second deploy — no downtime",
+        ],
+    ),
+    (
+        4.65,
+        BLUE,
+        "Access",
+        [
+            "RDP via Client VPN to the private IP (sysadm)",
+            "SSM Session Manager as backup path",
+            "No public IP — internet reachable from VPC only through NAT (private subnets)",
+        ],
+    ),
+    (
+        8.75,
+        AMBER,
+        "Operate",
+        [
+            "sysadm password rotation: change on host first, then update the secret",
+            "Flow logs → S3; Client VPN logs → CloudWatch",
+            "AWS API access from the DB subnet only via VPC endpoints",
+            "Client VPN user management → HMGRS after handover",
+        ],
+    ),
 ]
 for x, accent, title, items in cols:
-    shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, x, 1.6, 3.85, 4.3, fill=WHITE, line=BORDER, radius=0.045)
-    shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, x, 1.6, 3.85, 0.55, fill=accent, line=None, radius=0.35)
+    shape(
+        s,
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        x,
+        1.6,
+        3.85,
+        4.3,
+        fill=WHITE,
+        line=BORDER,
+        radius=0.045,
+    )
+    shape(
+        s,
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        x,
+        1.6,
+        3.85,
+        0.55,
+        fill=accent,
+        line=None,
+        radius=0.35,
+    )
     txt(s, x + 0.25, 1.72, 3.4, 0.35, title, size=16, bold=True, color=WHITE)
     bullets(s, x + 0.35, 2.45, 3.25, 3.3, items, size=12, gap=8)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 6.15, 12.25, 0.6, fill=AMBER_FILL, line=AMBER, radius=0.25)
-txt(s, 0.9, 6.3, 11.6, 0.35,
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    6.15,
+    12.25,
+    0.6,
+    fill=AMBER_FILL,
+    line=AMBER,
+    radius=0.25,
+)
+txt(
+    s,
+    0.9,
+    6.3,
+    11.6,
+    0.35,
     "All temporary implementation IAM permissions are removed at project completion.",
-    size=12, bold=True, color=NAVY, align=PP_ALIGN.CENTER)
+    size=12,
+    bold=True,
+    color=NAVY,
+    align=PP_ALIGN.CENTER,
+)
 footer(s, 7, TOTAL)
 
 # ---------------------------------------------------------------- Slide 8
 s = prs.slides.add_slide(BLANK)
 title_bar(s, "06 · Close-out", "Deliverables & next steps")
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 1.6, 6.1, 3.9, fill=WHITE, line=BORDER, radius=0.045)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 0.55, 1.6, 6.1, 0.16, fill=NAVY, line=None, radius=0.5)
-txt(s, 0.85, 1.78, 5.5, 0.35, "Deliverables (this folder)", size=15, bold=True, color=NAVY)
-bullets(s, 0.9, 2.3, 5.5, 3.0, [
-    "AWS Architecture Design Document — PPTX (Week 1)",
-    "AWS Infrastructure Resource Inventory — XLSX",
-    "Administration Guide — DOCX",
-    "Backup · MSSQL EC2 Recovery · VPN Configuration — DOCX",
-    "Project Completion Checklist — XLSX",
-], size=13, gap=6)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 6.95, 1.6, 5.85, 3.9, fill=WHITE, line=BORDER, radius=0.045)
-shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 6.95, 1.6, 5.85, 0.16, fill=GREEN, line=None, radius=0.5)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    1.6,
+    6.1,
+    3.9,
+    fill=WHITE,
+    line=BORDER,
+    radius=0.045,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    0.55,
+    1.6,
+    6.1,
+    0.16,
+    fill=NAVY,
+    line=None,
+    radius=0.5,
+)
+txt(
+    s,
+    0.85,
+    1.78,
+    5.5,
+    0.35,
+    "Deliverables (this folder)",
+    size=15,
+    bold=True,
+    color=NAVY,
+)
+bullets(
+    s,
+    0.9,
+    2.3,
+    5.5,
+    3.0,
+    [
+        "AWS Architecture Design Document — PPTX (Week 1)",
+        "AWS Infrastructure Resource Inventory — XLSX",
+        "Administration Guide — DOCX",
+        "Backup · MSSQL EC2 Recovery · VPN Configuration — DOCX",
+        "Project Completion Checklist — XLSX",
+    ],
+    size=13,
+    gap=6,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    6.95,
+    1.6,
+    5.85,
+    3.9,
+    fill=WHITE,
+    line=BORDER,
+    radius=0.045,
+)
+shape(
+    s,
+    MSO_SHAPE.ROUNDED_RECTANGLE,
+    6.95,
+    1.6,
+    5.85,
+    0.16,
+    fill=GREEN,
+    line=None,
+    radius=0.5,
+)
 txt(s, 7.25, 1.78, 5.3, 0.35, "Next steps", size=15, bold=True, color=NAVY)
-bullets(s, 7.3, 2.3, 5.3, 3.0, [
-    "Week 1 — review & approve the architecture deck",
-    "Client — create Entra ID app and send Federation Metadata XML",
-    "HMSG — issue / import ACM certificate, deploy the stack",
-    "HMSG — stage SQL media and hand the host over for SQL installation",
-    "Close-out — handover docs, remove temporary access, sign-off",
-], size=13, gap=6)
-txt(s, 0.55, 6.35, 12.2, 0.4,
+bullets(
+    s,
+    7.3,
+    2.3,
+    5.3,
+    3.0,
+    [
+        "Week 1 — review & approve the architecture deck",
+        "Client — create Entra ID app and send Federation Metadata XML",
+        "HMSG — issue / import ACM certificate, deploy the stack",
+        "HMSG — stage SQL media and hand the host over for SQL installation",
+        "Close-out — handover docs, remove temporary access, sign-off",
+    ],
+    size=13,
+    gap=6,
+)
+txt(
+    s,
+    0.55,
+    6.35,
+    12.2,
+    0.4,
     "Version-controlled in the project repository (main) · generated " + TODAY,
-    size=11, color="9AA7B4")
+    size=11,
+    color="9AA7B4",
+)
 footer(s, 8, TOTAL)
 
 prs.save(BASE / "AWS-Architecture-Design-Document.pptx")
@@ -444,146 +1019,551 @@ SUB_FONT = Font(name="Calibri", size=11, color=GRAY)
 BODY_FONT = Font(name="Calibri", size=11, color="333333")
 ZEBRA = PatternFill("solid", fgColor="F2F7FB")
 CAT_COLOR = {
-    "Network": "1F6FB2", "Security": "E08A00", "Compute": "2E7D32",
+    "Network": "1F6FB2",
+    "Security": "E08A00",
+    "Compute": "2E7D32",
     "VPN": "7B4FA6",
 }
 
 # --- shared contents ---
-inv_headers = ["Category", "Logical ID", "Resource Type", "Physical Name / Key Value",
-               "Key Settings", "Condition", "Notes"]
+inv_headers = [
+    "Category",
+    "Logical ID",
+    "Resource Type",
+    "Physical Name / Key Value",
+    "Key Settings",
+    "Condition",
+    "Notes",
+]
 inv_rows = [
-    ["Network", "Vpc", "AWS::EC2::VPC", "hmsg-rac-prd-vpc-ec1",
-     "CIDR 172.200.0.0/24 · DNS support + hostnames", "-", "Base VPC"],
-    ["Network", "InternetGateway", "AWS::EC2::InternetGateway", "hmsg-rac-prd-igw-ec1",
-     "Internet gateway", "-", "Public subnets"],
-    ["Network", "VpcIgwAttachment", "AWS::EC2::VPCGatewayAttachment",
-     "VPC ↔ IGW", "Attachment", "-", ""],
-    ["Network", "PubSubnetA", "AWS::EC2::Subnet", "hmsg-rac-prd-sub-pub-ec1a",
-     "172.200.0.0/27 · eu-central-1a · public IP on launch", "-", "NAT host"],
-    ["Network", "PubSubnetC", "AWS::EC2::Subnet", "hmsg-rac-prd-sub-pub-ec1c",
-     "172.200.0.32/27 · eu-central-1c", "-", ""],
-    ["Network", "PriSubnetA", "AWS::EC2::Subnet", "hmsg-rac-prd-sub-pri-ec1a",
-     "172.200.0.64/27 · eu-central-1a", "-", "Client VPN target"],
-    ["Network", "PriSubnetC", "AWS::EC2::Subnet", "hmsg-rac-prd-sub-pri-ec1c",
-     "172.200.0.96/27 · eu-central-1c", "-", "Client VPN target"],
-    ["Network", "DbSubnetA", "AWS::EC2::Subnet", "hmsg-rac-prd-sub-db-ec1a",
-     "172.200.0.128/27 · eu-central-1a", "-", "MSSQL host + endpoints"],
-    ["Network", "DbSubnetC", "AWS::EC2::Subnet", "hmsg-rac-prd-sub-db-ec1c",
-     "172.200.0.160/27 · eu-central-1c", "-", ""],
-    ["Network", "PubRouteTable", "AWS::EC2::RouteTable", "hmsg-rac-prd-rtb-pub-ec1",
-     "0.0.0.0/0 → IGW", "-", ""],
-    ["Network", "PriRouteTable", "AWS::EC2::RouteTable", "hmsg-rac-prd-rtb-pri-ec1",
-     "0.0.0.0/0 → NAT · VGW propagation", "-", ""],
-    ["Network", "DbRouteTable", "AWS::EC2::RouteTable", "hmsg-rac-prd-rtb-db-ec1",
-     "local only · VGW propagation · no IGW/NAT", "-", ""],
-    ["Network", "PubRouteInternet", "AWS::EC2::Route", "0.0.0.0/0 → IGW",
-     "Public route", "-", ""],
-    ["Network", "PriRouteNat", "AWS::EC2::Route", "0.0.0.0/0 → NAT",
-     "Private outbound", "-", ""],
-    ["Network", "NatEip", "AWS::EC2::EIP", "NAT Elastic IP",
-     "Allocated for NAT gateway", "-", ""],
-    ["Network", "NatGateway", "AWS::EC2::NatGateway", "hmsg-rac-prd-NAT-pub-ec1",
-     "Public subnet ec1a", "-", ""],
-    ["Network", "FlowLogBucket", "AWS::S3::Bucket", "hmsg-rac-prd-flowlog-<acct>",
-     "SSE-S3 · lifecycle: Glacier @30d · expire @365d", "-", "VPC flow logs"],
-    ["Network", "VpcFlowLog", "AWS::EC2::FlowLog", "VPC flow log",
-     "ALL traffic → S3 · 10 min aggregation", "-", ""],
-    ["Network", "PubSubnetARouteAssoc", "AWS::EC2::SubnetRouteTableAssociation",
-     "pub-a → pub rtb", "Association", "-", ""],
-    ["Network", "PubSubnetCRouteAssoc", "AWS::EC2::SubnetRouteTableAssociation",
-     "pub-c → pub rtb", "Association", "-", ""],
-    ["Network", "PriSubnetARouteAssoc", "AWS::EC2::SubnetRouteTableAssociation",
-     "pri-a → pri rtb", "Association", "-", ""],
-    ["Network", "PriSubnetCRouteAssoc", "AWS::EC2::SubnetRouteTableAssociation",
-     "pri-c → pri rtb", "Association", "-", ""],
-    ["Network", "DbSubnetARouteAssoc", "AWS::EC2::SubnetRouteTableAssociation",
-     "db-a → db rtb", "Association", "-", ""],
-    ["Network", "DbSubnetCRouteAssoc", "AWS::EC2::SubnetRouteTableAssociation",
-     "db-c → db rtb", "Association", "-", ""],
-    ["Security", "CommonSg", "AWS::EC2::SecurityGroup", "hmsg-rac-prd-common-ec2-sg-ec1",
-     "RDP 3389 ← 10.200.0.0/22 · egress 443 → VPC", "-", "Windows admin"],
-    ["Security", "MssqlSg", "AWS::EC2::SecurityGroup", "hmsg-rac-prd-mssql-ec2-sg-ec1",
-     "MSSQL 1433 ← 10.200.0.0/22 · egress 443 → VPC", "-", "SQL access"],
-    ["Security", "CommonSgOnPremRdp", "AWS::EC2::SecurityGroupIngress",
-     "RDP from on-prem", "3389 ← OnPremCidr", "CreateSiteToSiteVpn", ""],
-    ["Security", "MssqlSgOnPremMssql", "AWS::EC2::SecurityGroupIngress",
-     "MSSQL from on-prem", "1433 ← OnPremCidr", "CreateSiteToSiteVpn", ""],
-    ["Security", "ClientVpnSg", "AWS::EC2::SecurityGroup", "hmsg-rac-prd-clientvpn-sg-ec1",
-     "UDP 443 ← 0.0.0.0/0 · egress 3389/1433 → VPC", "-", "Endpoint SG"],
-    ["Security", "VpcEndpointSg", "AWS::EC2::SecurityGroup", "hmsg-rac-prd-vpce-sg-ec1",
-     "TCP 443 ← VPC CIDR", "-", "Interface endpoints"],
-    ["Compute", "SysadmSecret", "AWS::SecretsManager::Secret", "hmsg-rac-prd-sysadm-password",
-     "sysadm password (NoEcho) · retained", "-", ""],
-    ["Compute", "Ec2Role", "AWS::IAM::Role", "EC2 instance role",
-     "AmazonSSMManagedInstanceCore · GetSecretValue (1 secret)", "-", ""],
-    ["Compute", "Ec2InstanceProfile", "AWS::IAM::InstanceProfile", "EC2 instance profile",
-     "Attaches Ec2Role", "-", ""],
-    ["Compute", "MssqlInstance", "AWS::EC2::Instance", "hmsg-rac-prd-mssql01-ec2-ec1a",
-     "m7i.2xlarge · Win 2022 EN · 250 GB root + 4 TB D: · IMDSv2", "-",
-     "EB S-optimised · retained"],
-    ["Compute", "SecretsManagerEndpoint", "AWS::EC2::VPCEndpoint",
-     "com.amazonaws.eu-central-1.secretsmanager",
-     "Interface · DbSubnetA · private DNS", "-", ""],
-    ["Compute", "SsmEndpoint", "AWS::EC2::VPCEndpoint",
-     "com.amazonaws.eu-central-1.ssm",
-     "Interface · DbSubnetA · private DNS", "-", ""],
-    ["Compute", "SsmMessagesEndpoint", "AWS::EC2::VPCEndpoint",
-     "com.amazonaws.eu-central-1.ssmmessages",
-     "Interface · DbSubnetA · private DNS", "-", ""],
-    ["Compute", "Ec2MessagesEndpoint", "AWS::EC2::VPCEndpoint",
-     "com.amazonaws.eu-central-1.ec2messages",
-     "Interface · DbSubnetA · private DNS", "-", ""],
-    ["VPN", "SamlProvider", "AWS::IAM::SAMLProvider", "hmsg-rac-prd-clientvpn-saml",
-     "Entra ID Federation Metadata XML", "-", ""],
-    ["VPN", "AcmCertificate", "AWS::CertificateManager::Certificate", "vpn.hmg-racing.com",
-     "Public DNS validation (hosted zone)", "CreateAcmCertHostedZone", ""],
-    ["VPN", "AcmCertificateManual", "AWS::CertificateManager::Certificate",
-     "vpn.hmg-racing.com", "Public DNS validation (manual CNAME)", "CreateAcmCertManual", ""],
-    ["VPN", "ClientVpnLogGroup", "AWS::Logs::LogGroup", "hmsg-rac-prd-clientvpn-logs",
-     "CloudWatch · 90 day retention", "-", ""],
-    ["VPN", "ClientVpnEndpoint", "AWS::EC2::ClientVpnEndpoint", "hmsg-rac-prd-clientvpn-ec1",
-     "CIDR 10.200.0.0/22 · SAML federation · UDP 443 · split tunnel", "-", ""],
-    ["VPN", "ClientVpnAssocPriA", "AWS::EC2::ClientVpnTargetNetworkAssociation",
-     "pri-a association", "Target network PriSubnetA", "-", ""],
-    ["VPN", "ClientVpnAssocPriC", "AWS::EC2::ClientVpnTargetNetworkAssociation",
-     "pri-c association", "Target network PriSubnetC", "-", ""],
-    ["VPN", "ClientVpnRouteVpc", "AWS::EC2::ClientVpnRoute", "route → VPC /24",
-     "Via PriSubnetA association", "-", ""],
-    ["VPN", "ClientVpnAuthRule", "AWS::EC2::ClientVpnAuthorizationRule",
-     "authorize all groups", "TargetNetworkCidr = VPC /24", "-", ""],
-    ["VPN", "CustomerGateway", "AWS::EC2::CustomerGateway", "hmsg-rac-prd-cgw-ec1",
-     "ipsec.1 · BGP ASN 65000 · public IP from client", "CreateSiteToSiteVpn", ""],
-    ["VPN", "VpnGateway", "AWS::EC2::VPNGateway", "hmsg-rac-prd-vgw-ec1",
-     "ipsec.1 · Amazon side ASN 64512", "CreateSiteToSiteVpn", ""],
-    ["VPN", "VpcVgwAttachment", "AWS::EC2::VPCGatewayAttachment", "VPC ↔ VGW",
-     "Attachment", "CreateSiteToSiteVpn", ""],
-    ["VPN", "VpnConnection", "AWS::EC2::VPNConnection", "hmsg-rac-prd-vpn-conn-ec1",
-     "static routes only · 2 tunnels", "CreateSiteToSiteVpn", ""],
-    ["VPN", "VpnConnectionRouteOnPrem", "AWS::EC2::VPNConnectionRoute", "on-prem route",
-     "Destination = OnPremCidr", "CreateSiteToSiteVpn", ""],
-    ["VPN", "VpnPropagationPri", "AWS::EC2::VPNGatewayRoutePropagation",
-     "propagate → pri rtb", "VGW propagation", "CreateSiteToSiteVpn", ""],
-    ["VPN", "VpnPropagationDb", "AWS::EC2::VPNGatewayRoutePropagation",
-     "propagate → db rtb", "VGW propagation", "CreateSiteToSiteVpn", ""],
+    [
+        "Network",
+        "Vpc",
+        "AWS::EC2::VPC",
+        "hmsg-rac-prd-vpc-ec1",
+        "CIDR 172.200.0.0/24 · DNS support + hostnames",
+        "-",
+        "Base VPC",
+    ],
+    [
+        "Network",
+        "InternetGateway",
+        "AWS::EC2::InternetGateway",
+        "hmsg-rac-prd-igw-ec1",
+        "Internet gateway",
+        "-",
+        "Public subnets",
+    ],
+    [
+        "Network",
+        "VpcIgwAttachment",
+        "AWS::EC2::VPCGatewayAttachment",
+        "VPC ↔ IGW",
+        "Attachment",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PubSubnetA",
+        "AWS::EC2::Subnet",
+        "hmsg-rac-prd-sub-pub-ec1a",
+        "172.200.0.0/27 · eu-central-1a · public IP on launch",
+        "-",
+        "NAT host",
+    ],
+    [
+        "Network",
+        "PubSubnetC",
+        "AWS::EC2::Subnet",
+        "hmsg-rac-prd-sub-pub-ec1c",
+        "172.200.0.32/27 · eu-central-1c",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PriSubnetA",
+        "AWS::EC2::Subnet",
+        "hmsg-rac-prd-sub-pri-ec1a",
+        "172.200.0.64/27 · eu-central-1a",
+        "-",
+        "Client VPN target",
+    ],
+    [
+        "Network",
+        "PriSubnetC",
+        "AWS::EC2::Subnet",
+        "hmsg-rac-prd-sub-pri-ec1c",
+        "172.200.0.96/27 · eu-central-1c",
+        "-",
+        "Client VPN target",
+    ],
+    [
+        "Network",
+        "DbSubnetA",
+        "AWS::EC2::Subnet",
+        "hmsg-rac-prd-sub-db-ec1a",
+        "172.200.0.128/27 · eu-central-1a",
+        "-",
+        "MSSQL host + endpoints",
+    ],
+    [
+        "Network",
+        "DbSubnetC",
+        "AWS::EC2::Subnet",
+        "hmsg-rac-prd-sub-db-ec1c",
+        "172.200.0.160/27 · eu-central-1c",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PubRouteTable",
+        "AWS::EC2::RouteTable",
+        "hmsg-rac-prd-rtb-pub-ec1",
+        "0.0.0.0/0 → IGW",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PriRouteTable",
+        "AWS::EC2::RouteTable",
+        "hmsg-rac-prd-rtb-pri-ec1",
+        "0.0.0.0/0 → NAT · VGW propagation",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "DbRouteTable",
+        "AWS::EC2::RouteTable",
+        "hmsg-rac-prd-rtb-db-ec1",
+        "local only · VGW propagation · no IGW/NAT",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PubRouteInternet",
+        "AWS::EC2::Route",
+        "0.0.0.0/0 → IGW",
+        "Public route",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PriRouteNat",
+        "AWS::EC2::Route",
+        "0.0.0.0/0 → NAT",
+        "Private outbound",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "NatEip",
+        "AWS::EC2::EIP",
+        "NAT Elastic IP",
+        "Allocated for NAT gateway",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "NatGateway",
+        "AWS::EC2::NatGateway",
+        "hmsg-rac-prd-NAT-pub-ec1",
+        "Public subnet ec1a",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "FlowLogBucket",
+        "AWS::S3::Bucket",
+        "hmsg-rac-prd-flowlog-<acct>",
+        "SSE-S3 · lifecycle: Glacier @30d · expire @365d",
+        "-",
+        "VPC flow logs",
+    ],
+    [
+        "Network",
+        "VpcFlowLog",
+        "AWS::EC2::FlowLog",
+        "VPC flow log",
+        "ALL traffic → S3 · 10 min aggregation",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PubSubnetARouteAssoc",
+        "AWS::EC2::SubnetRouteTableAssociation",
+        "pub-a → pub rtb",
+        "Association",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PubSubnetCRouteAssoc",
+        "AWS::EC2::SubnetRouteTableAssociation",
+        "pub-c → pub rtb",
+        "Association",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PriSubnetARouteAssoc",
+        "AWS::EC2::SubnetRouteTableAssociation",
+        "pri-a → pri rtb",
+        "Association",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "PriSubnetCRouteAssoc",
+        "AWS::EC2::SubnetRouteTableAssociation",
+        "pri-c → pri rtb",
+        "Association",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "DbSubnetARouteAssoc",
+        "AWS::EC2::SubnetRouteTableAssociation",
+        "db-a → db rtb",
+        "Association",
+        "-",
+        "",
+    ],
+    [
+        "Network",
+        "DbSubnetCRouteAssoc",
+        "AWS::EC2::SubnetRouteTableAssociation",
+        "db-c → db rtb",
+        "Association",
+        "-",
+        "",
+    ],
+    [
+        "Security",
+        "CommonSg",
+        "AWS::EC2::SecurityGroup",
+        "hmsg-rac-prd-common-ec2-sg-ec1",
+        "RDP 3389 ← 10.200.0.0/22 · egress 443 → VPC",
+        "-",
+        "Windows admin",
+    ],
+    [
+        "Security",
+        "MssqlSg",
+        "AWS::EC2::SecurityGroup",
+        "hmsg-rac-prd-mssql-ec2-sg-ec1",
+        "MSSQL 1433 ← 10.200.0.0/22 · egress 443 → VPC",
+        "-",
+        "SQL access",
+    ],
+    [
+        "Security",
+        "CommonSgOnPremRdp",
+        "AWS::EC2::SecurityGroupIngress",
+        "RDP from on-prem",
+        "3389 ← OnPremCidr",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "Security",
+        "MssqlSgOnPremMssql",
+        "AWS::EC2::SecurityGroupIngress",
+        "MSSQL from on-prem",
+        "1433 ← OnPremCidr",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "Security",
+        "ClientVpnSg",
+        "AWS::EC2::SecurityGroup",
+        "hmsg-rac-prd-clientvpn-sg-ec1",
+        "UDP 443 ← 0.0.0.0/0 · egress 3389/1433 → VPC",
+        "-",
+        "Endpoint SG",
+    ],
+    [
+        "Security",
+        "VpcEndpointSg",
+        "AWS::EC2::SecurityGroup",
+        "hmsg-rac-prd-vpce-sg-ec1",
+        "TCP 443 ← VPC CIDR",
+        "-",
+        "Interface endpoints",
+    ],
+    [
+        "Compute",
+        "SysadmSecret",
+        "AWS::SecretsManager::Secret",
+        "hmsg-rac-prd-sysadm-password",
+        "sysadm password (NoEcho) · retained",
+        "-",
+        "",
+    ],
+    [
+        "Compute",
+        "Ec2Role",
+        "AWS::IAM::Role",
+        "EC2 instance role",
+        "AmazonSSMManagedInstanceCore · GetSecretValue (1 secret)",
+        "-",
+        "",
+    ],
+    [
+        "Compute",
+        "Ec2InstanceProfile",
+        "AWS::IAM::InstanceProfile",
+        "EC2 instance profile",
+        "Attaches Ec2Role",
+        "-",
+        "",
+    ],
+    [
+        "Compute",
+        "MssqlInstance",
+        "AWS::EC2::Instance",
+        "hmsg-rac-prd-mssql01-ec2-ec1a",
+        "m7i.2xlarge · Win 2022 EN · 250 GB root + 4 TB D: · IMDSv2",
+        "-",
+        "EB S-optimised · retained",
+    ],
+    [
+        "Compute",
+        "SecretsManagerEndpoint",
+        "AWS::EC2::VPCEndpoint",
+        "com.amazonaws.eu-central-1.secretsmanager",
+        "Interface · DbSubnetA · private DNS",
+        "-",
+        "",
+    ],
+    [
+        "Compute",
+        "SsmEndpoint",
+        "AWS::EC2::VPCEndpoint",
+        "com.amazonaws.eu-central-1.ssm",
+        "Interface · DbSubnetA · private DNS",
+        "-",
+        "",
+    ],
+    [
+        "Compute",
+        "SsmMessagesEndpoint",
+        "AWS::EC2::VPCEndpoint",
+        "com.amazonaws.eu-central-1.ssmmessages",
+        "Interface · DbSubnetA · private DNS",
+        "-",
+        "",
+    ],
+    [
+        "Compute",
+        "Ec2MessagesEndpoint",
+        "AWS::EC2::VPCEndpoint",
+        "com.amazonaws.eu-central-1.ec2messages",
+        "Interface · DbSubnetA · private DNS",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "SamlProvider",
+        "AWS::IAM::SAMLProvider",
+        "hmsg-rac-prd-clientvpn-saml",
+        "Entra ID Federation Metadata XML",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "AcmCertificate",
+        "AWS::CertificateManager::Certificate",
+        "vpn.hmg-racing.com",
+        "Public DNS validation (hosted zone)",
+        "CreateAcmCertHostedZone",
+        "",
+    ],
+    [
+        "VPN",
+        "AcmCertificateManual",
+        "AWS::CertificateManager::Certificate",
+        "vpn.hmg-racing.com",
+        "Public DNS validation (manual CNAME)",
+        "CreateAcmCertManual",
+        "",
+    ],
+    [
+        "VPN",
+        "ClientVpnLogGroup",
+        "AWS::Logs::LogGroup",
+        "hmsg-rac-prd-clientvpn-logs",
+        "CloudWatch · 90 day retention",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "ClientVpnEndpoint",
+        "AWS::EC2::ClientVpnEndpoint",
+        "hmsg-rac-prd-clientvpn-ec1",
+        "CIDR 10.200.0.0/22 · SAML federation · UDP 443 · split tunnel",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "ClientVpnAssocPriA",
+        "AWS::EC2::ClientVpnTargetNetworkAssociation",
+        "pri-a association",
+        "Target network PriSubnetA",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "ClientVpnAssocPriC",
+        "AWS::EC2::ClientVpnTargetNetworkAssociation",
+        "pri-c association",
+        "Target network PriSubnetC",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "ClientVpnRouteVpc",
+        "AWS::EC2::ClientVpnRoute",
+        "route → VPC /24",
+        "Via PriSubnetA association",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "ClientVpnAuthRule",
+        "AWS::EC2::ClientVpnAuthorizationRule",
+        "authorize all groups",
+        "TargetNetworkCidr = VPC /24",
+        "-",
+        "",
+    ],
+    [
+        "VPN",
+        "CustomerGateway",
+        "AWS::EC2::CustomerGateway",
+        "hmsg-rac-prd-cgw-ec1",
+        "ipsec.1 · BGP ASN 65000 · public IP from client",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "VPN",
+        "VpnGateway",
+        "AWS::EC2::VPNGateway",
+        "hmsg-rac-prd-vgw-ec1",
+        "ipsec.1 · Amazon side ASN 64512",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "VPN",
+        "VpcVgwAttachment",
+        "AWS::EC2::VPCGatewayAttachment",
+        "VPC ↔ VGW",
+        "Attachment",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "VPN",
+        "VpnConnection",
+        "AWS::EC2::VPNConnection",
+        "hmsg-rac-prd-vpn-conn-ec1",
+        "static routes only · 2 tunnels",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "VPN",
+        "VpnConnectionRouteOnPrem",
+        "AWS::EC2::VPNConnectionRoute",
+        "on-prem route",
+        "Destination = OnPremCidr",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "VPN",
+        "VpnPropagationPri",
+        "AWS::EC2::VPNGatewayRoutePropagation",
+        "propagate → pri rtb",
+        "VGW propagation",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
+    [
+        "VPN",
+        "VpnPropagationDb",
+        "AWS::EC2::VPNGatewayRoutePropagation",
+        "propagate → db rtb",
+        "VGW propagation",
+        "CreateSiteToSiteVpn",
+        "",
+    ],
 ]
 
 param_rows = [
     ["ProjectName", "String", "hmsg-rac", "Name prefix"],
     ["EnvironmentName", "String", "prd", "Environment suffix (prd only)"],
-    ["VpcCidr", "String", "172.200.0.0/24", "VPC CIDR — /24; subnets derived via Fn::Cidr"],
+    [
+        "VpcCidr",
+        "String",
+        "172.200.0.0/24",
+        "VPC CIDR — /24; subnets derived via Fn::Cidr",
+    ],
     ["ClientVpnCidr", "String", "10.200.0.0/22", "Client VPN client pool"],
     ["OnPremCidr", "String", "(empty)", "Optional — blank skips the Site-to-Site VPN"],
-    ["CustomerGatewayIp", "String", "(empty)", "Optional — blank skips the Site-to-Site VPN"],
+    [
+        "CustomerGatewayIp",
+        "String",
+        "(empty)",
+        "Optional — blank skips the Site-to-Site VPN",
+    ],
     ["InstanceType", "String", "m7i.2xlarge", "Windows host (8 vCPU / 32 GiB)"],
-    ["KeyPairName", "AWS::EC2::KeyPair::KeyName", "hmsg-rac-prd-key-ec2-ec1", "Admin password decrypt"],
-    ["WindowsAmi", "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
-     "/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base", "Latest Windows 2022 EN"],
-    ["AdminPassword", "String (NoEcho)", "(hidden)", "sysadm password → Secrets Manager"],
+    [
+        "KeyPairName",
+        "AWS::EC2::KeyPair::KeyName",
+        "hmsg-rac-prd-key-ec2-ec1",
+        "Admin password decrypt",
+    ],
+    [
+        "WindowsAmi",
+        "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+        "/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base",
+        "Latest Windows 2022 EN",
+    ],
+    [
+        "AdminPassword",
+        "String (NoEcho)",
+        "(hidden)",
+        "sysadm password → Secrets Manager",
+    ],
     ["AdminSecretName", "String", "hmsg-rac-prd-sysadm-password", "Secret name"],
     ["VpnDomainName", "String", "vpn.hmg-racing.com", "Server certificate subject"],
     ["HostedZoneId", "String", "(empty)", "Optional Route 53 zone for ACM validation"],
     ["ServerCertificateArn", "String", "(empty)", "Optional existing ACM certificate"],
-    ["SamlMetadataDocument", "String", "(placeholder XML)", "Entra ID federation metadata"],
     ["SplitTunnel", "String", "true", "true / false"],
 ]
 
@@ -592,11 +1572,23 @@ cond_rows = [
     ["UseHostedZone", "HostedZoneId provided?", "Automatic ACM DNS validation"],
     ["NoHostedZone", "HostedZoneId empty", "Manual DNS validation"],
     ["SplitTunnelEnabled", "SplitTunnel = true", "Split tunnel on"],
-    ["CreateAcmCertHostedZone", "UseHostedZone AND NOT UseExistingCert", "New cert in hosted zone"],
-    ["CreateAcmCertManual", "NoHostedZone AND NOT UseExistingCert", "New cert, manual CNAME"],
+    [
+        "CreateAcmCertHostedZone",
+        "UseHostedZone AND NOT UseExistingCert",
+        "New cert in hosted zone",
+    ],
+    [
+        "CreateAcmCertManual",
+        "NoHostedZone AND NOT UseExistingCert",
+        "New cert, manual CNAME",
+    ],
     ["HasOnPremCidr", "OnPremCidr provided", ""],
     ["HasCustomerGatewayIp", "CustomerGatewayIp provided", ""],
-    ["CreateSiteToSiteVpn", "HasOnPremCidr AND HasCustomerGatewayIp", "Build the S2S VPN"],
+    [
+        "CreateSiteToSiteVpn",
+        "HasOnPremCidr AND HasCustomerGatewayIp",
+        "Build the S2S VPN",
+    ],
 ]
 
 out_rows = [
@@ -624,24 +1616,72 @@ vpn_rows = [
     ["Client VPN", "Target networks", "PriSubnetA · PriSubnetC", ""],
     ["Client VPN", "Route", "172.200.0.0/24 via pri-a", "Whole VPC"],
     ["Client VPN", "Authorization", "All groups", "Restrict via Entra group later"],
-    ["Client VPN", "Self-service portal", "https://self-service.clientvpn.amazonaws.com", "SAML SSO"],
-    ["SAML values", "Identifier", "urn:amazon:webservices:clientvpn", "For the Entra ID app"],
-    ["SAML values", "Reply URL", "https://self-service.clientvpn.amazonaws.com/api/auth/sso/saml", ""],
+    [
+        "Client VPN",
+        "Self-service portal",
+        "https://self-service.clientvpn.amazonaws.com",
+        "SAML SSO",
+    ],
+    [
+        "SAML values",
+        "Identifier",
+        "urn:amazon:webservices:clientvpn",
+        "For the Entra ID app",
+    ],
+    [
+        "SAML values",
+        "Reply URL",
+        "https://self-service.clientvpn.amazonaws.com/api/auth/sso/saml",
+        "",
+    ],
     ["SAML values", "Sign-on URL", "http://127.0.0.1:35001", "Loopback on user device"],
+    [
+        "SAML metadata",
+        "How it is applied",
+        "Out-of-band: aws iam update-saml-provider",
+        "Real Entra ID XML is ~13 KB — too large for a CFN String param (4096 limit); template carries a placeholder provider",
+    ],
+    [
+        "SAML metadata",
+        "Post-deploy command",
+        "update-saml-provider --saml-provider-arn <output> --saml-metadata-document file://<xml>",
+        "Before anyone can SSO in",
+    ],
     ["Site-to-Site", "Customer gateway", "ipsec.1 · ASN 65000", "Conditional"],
     ["Site-to-Site", "Routing", "Static · prop. to pri/db RTs", ""],
-    ["Site-to-Site", "Tunnel config", "VPC console → download configuration", "Share with on-prem team"],
+    [
+        "Site-to-Site",
+        "Tunnel config",
+        "VPC console → download configuration",
+        "Share with on-prem team",
+    ],
 ]
 
 perm_rows = [
-    ["Client VPN users (devs)", "Client-side", "Entra ID group the client assigns",
-     "Access only through Client VPN — no public reach"],
-    ["Implementation team (HMSG)", "Temporary", "AWS console / IAM admin",
-     "Removed at project completion"],
-    ["EC2 host operators", "Secure ops", "sysadm (Secrets Manager) · SSM Session Manager",
-     "RDP via Client VPN only"],
-    ["On-prem network / firewall", "Client infra", "Customer gateway",
-     "Manages the Site-to-Site VPN side"],
+    [
+        "Client VPN users (devs)",
+        "Client-side",
+        "Entra ID group the client assigns",
+        "Access only through Client VPN — no public reach",
+    ],
+    [
+        "Implementation team (HMSG)",
+        "Temporary",
+        "AWS console / IAM admin",
+        "Removed at project completion",
+    ],
+    [
+        "EC2 host operators",
+        "Secure ops",
+        "sysadm (Secrets Manager) · SSM Session Manager",
+        "RDP via Client VPN only",
+    ],
+    [
+        "On-prem network / firewall",
+        "Client infra",
+        "Customer gateway",
+        "Manages the Site-to-Site VPN side",
+    ],
 ]
 
 
@@ -662,8 +1702,11 @@ def style_sheet(ws, headers, rows, widths, zebra=True, tab=None, wrap_cols=None)
         for j, c in enumerate(row, start=1):
             c.font = BODY_FONT
             c.border = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
-            c.alignment = Alignment(vertical="top", wrap_text=(j in wrap_cols),
-                                    horizontal="center" if j == 1 else "left")
+            c.alignment = Alignment(
+                vertical="top",
+                wrap_text=(j in wrap_cols),
+                horizontal="center" if j == 1 else "left",
+            )
             if zebra and i % 2 == 0:
                 c.fill = ZEBRA
         est = 1
@@ -709,17 +1752,23 @@ meta = [
     ("Baseline", "main @ def9a32 — deliverables commit"),
 ]
 for i, (k, v) in enumerate(meta, start=4):
-    ws.cell(row=i, column=1, value=k).font = Font(name="Calibri", size=11, bold=True, color=NAVY)
+    ws.cell(row=i, column=1, value=k).font = Font(
+        name="Calibri", size=11, bold=True, color=NAVY
+    )
     ws.cell(row=i, column=1).fill = PatternFill("solid", fgColor=SKY_FILL)
-    ws.cell(row=i, column=1).border = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+    ws.cell(row=i, column=1).border = Border(
+        left=THIN, right=THIN, top=THIN, bottom=THIN
+    )
     ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=5)
     c = ws.cell(row=i, column=2, value=v)
     c.font = BODY_FONT
     c.border = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
     ws.row_dimensions[i].height = 20
 ws.merge_cells("A14:F15")
-ws["A14"] = ("Sheets: Resource Inventory (54 resources) · Parameters (16) · Conditions (9) · "
-             "Outputs (14) · VPN Config · Users & Permissions.")
+ws["A14"] = (
+    "Sheets: Resource Inventory (54 resources) · Parameters (16) · Conditions (9) · "
+    "Outputs (14) · VPN Config · Users & Permissions."
+)
 ws["A14"].font = Font(name="Calibri", size=11, italic=True, color=GRAY)
 ws["A14"].alignment = Alignment(wrap_text=True, vertical="top")
 ws.row_dimensions[14].height = 30
@@ -728,36 +1777,68 @@ for col, w in {"A": 18, "B": 22, "C": 22, "D": 22, "E": 22, "F": 22}.items():
 
 # Resource Inventory
 ws = wb.create_sheet("Resource Inventory")
-style_sheet(ws, inv_headers, inv_rows, {"A": 12, "B": 26, "C": 34, "D": 32, "E": 52, "F": 20, "G": 24},
-            tab=BLUE)
+style_sheet(
+    ws,
+    inv_headers,
+    inv_rows,
+    {"A": 12, "B": 26, "C": 34, "D": 32, "E": 52, "F": 20, "G": 24},
+    tab=BLUE,
+)
 for i, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row), start=2):
     cat = row[0].value
-    row[0].font = Font(name="Calibri", size=11, bold=True, color=CAT_COLOR.get(cat, NAVY))
+    row[0].font = Font(
+        name="Calibri", size=11, bold=True, color=CAT_COLOR.get(cat, NAVY)
+    )
 
 # Parameters
 ws = wb.create_sheet("Parameters")
-style_sheet(ws, ["Parameter", "Type", "Default / Example", "Purpose"],
-            param_rows, {"A": 24, "B": 40, "C": 46, "D": 46}, tab=SKY)
+style_sheet(
+    ws,
+    ["Parameter", "Type", "Default / Example", "Purpose"],
+    param_rows,
+    {"A": 24, "B": 40, "C": 46, "D": 46},
+    tab=SKY,
+)
 
 # Conditions
 ws = wb.create_sheet("Conditions")
-style_sheet(ws, ["Condition", "Expression (compact)", "Effect"],
-            cond_rows, {"A": 28, "B": 62, "C": 46}, tab="9AA7B4")
+style_sheet(
+    ws,
+    ["Condition", "Expression (compact)", "Effect"],
+    cond_rows,
+    {"A": 28, "B": 62, "C": 46},
+    tab="9AA7B4",
+)
 
 # Outputs
 ws = wb.create_sheet("Outputs")
-style_sheet(ws, ["Output", "What it returns", "Use"],
-            out_rows, {"A": 28, "B": 40, "C": 40}, tab=AMBER)
+style_sheet(
+    ws,
+    ["Output", "What it returns", "Use"],
+    out_rows,
+    {"A": 28, "B": 40, "C": 40},
+    tab=AMBER,
+)
 
 # VPN Config
 ws = wb.create_sheet("VPN Config")
-style_sheet(ws, ["Area", "Setting", "Value", "Notes"],
-            vpn_rows, {"A": 16, "B": 24, "C": 52, "D": 34}, tab=SKY)
+style_sheet(
+    ws,
+    ["Area", "Setting", "Value", "Notes"],
+    vpn_rows,
+    {"A": 16, "B": 24, "C": 52, "D": 34},
+    tab=SKY,
+)
 
 # Users & Permissions
 ws = wb.create_sheet("Users & Permissions")
-style_sheet(ws, ["Role / Owner", "Scope", "Access", "Notes"],
-            perm_rows, {"A": 26, "B": 16, "C": 44, "D": 40}, tab=GREEN)
+style_sheet(
+    ws,
+    ["Role / Owner", "Scope", "Access", "Notes"],
+    perm_rows,
+    {"A": 26, "B": 16, "C": 44, "D": 40},
+    tab=GREEN,
+)
 
 wb.save(BASE / "AWS-Infrastructure-Resource-Inventory.xlsx")
 
@@ -770,14 +1851,26 @@ cs.title = "Checklist"
 cs.sheet_properties.tabColor = NAVY
 chk_headers = ["Category", "Checklist item", "Owner", "Status", "Evidence / notes"]
 chk_rows = [
-    ["Requirements", "Confirm VpcCidr (172.200.0.0/24) with the client — non-RFC1918 range", "Client / HMSG"],
+    [
+        "Requirements",
+        "Confirm VpcCidr (172.200.0.0/24) with the client — non-RFC1918 range",
+        "Client / HMSG",
+    ],
     ["Requirements", "Confirm ClientVpnCidr 10.200.0.0/22 has no overlap", "HMSG"],
-    ["Requirements", "Receive CustomerGatewayIp + OnPremCidr (for the optional S2S VPN)", "Client"],
+    [
+        "Requirements",
+        "Receive CustomerGatewayIp + OnPremCidr (for the optional S2S VPN)",
+        "Client",
+    ],
     ["Requirements", "Receive Entra ID Federation Metadata XML", "Client"],
     ["Design", "Architecture design document approved (Week 1)", "Client / HMSG"],
     ["Network", "Deploy VPC / subnets / route tables / IGW / NAT", "HMSG"],
     ["Network", "Verify flow logs → S3 and lifecycle rules", "HMSG"],
-    ["Security", "Security groups allow RDP / MSSQL only from VPN + on-prem ranges", "HMSG"],
+    [
+        "Security",
+        "Security groups allow RDP / MSSQL only from VPN + on-prem ranges",
+        "HMSG",
+    ],
     ["Security", "sysadm secret exists in Secrets Manager (NoEcho)", "HMSG"],
     ["Compute", "EC2 launched in db-ec1a (m7i.2xlarge · Win 2022)", "HMSG"],
     ["Compute", "D: 4 TB volume formatted NTFS and mounted", "HMSG"],
@@ -785,7 +1878,11 @@ chk_rows = [
     ["VPN", "ACM server certificate issued / imported", "HMSG"],
     ["VPN", "IAM SAML provider updated with real metadata XML", "HMSG"],
     ["VPN", "Client VPN endpoint validated; .ovpn distributed to ≤10 users", "HMSG"],
-    ["VPN", "Developer access to the DB host over Client VPN verified", "Client / HMSG"],
+    [
+        "VPN",
+        "Developer access to the DB host over Client VPN verified",
+        "Client / HMSG",
+    ],
     ["VPN", "Site-to-Site VPN created and tunnels UP (if required)", "Client / HMSG"],
     ["VPN", "On-prem route propagated into pri/db route tables verified", "HMSG"],
     ["Docs", "Resource inventory delivered", "HMSG"],
@@ -796,22 +1893,54 @@ chk_rows = [
     ["Handover", "VPN user management transferred to HMGRS", "Client / HMGRS"],
     ["Handover", "Final sign-off obtained", "Client / HMSG"],
 ]
-style_sheet(cs, chk_headers, [r + ["Not started", ""] for r in chk_rows],
-            {"A": 16, "B": 68, "C": 16, "D": 15, "E": 40}, zebra=True, tab=NAVY)
-dv = DataValidation(type="list", formula1='"Not started,In progress,Blocked,Done"', allow_blank=True)
+style_sheet(
+    cs,
+    chk_headers,
+    [r + ["Not started", ""] for r in chk_rows],
+    {"A": 16, "B": 68, "C": 16, "D": 15, "E": 40},
+    zebra=True,
+    tab=NAVY,
+)
+dv = DataValidation(
+    type="list", formula1='"Not started,In progress,Blocked,Done"', allow_blank=True
+)
 dv.error = "Choose: Not started, In progress, Blocked or Done."
 dv.errorTitle = "Invalid status"
 cs.add_data_validation(dv)
 dv.add(f"D2:D{cs.max_row}")
 rng = f"D2:D{cs.max_row}"
-cs.conditional_formatting.add(rng, FormulaRule(formula=['$D2="Done"'],
-    fill=PatternFill("solid", fgColor="C6EFCE"), font=Font(color="006100", bold=True)))
-cs.conditional_formatting.add(rng, FormulaRule(formula=['$D2="In progress"'],
-    fill=PatternFill("solid", fgColor="FFEB9C"), font=Font(color="9C6500", bold=True)))
-cs.conditional_formatting.add(rng, FormulaRule(formula=['$D2="Blocked"'],
-    fill=PatternFill("solid", fgColor="FFC7CE"), font=Font(color="9C0006", bold=True)))
-cs.conditional_formatting.add(rng, FormulaRule(formula=['$D2="Not started"'],
-    fill=PatternFill("solid", fgColor="EDEDED"), font=Font(color="595959")))
+cs.conditional_formatting.add(
+    rng,
+    FormulaRule(
+        formula=['$D2="Done"'],
+        fill=PatternFill("solid", fgColor="C6EFCE"),
+        font=Font(color="006100", bold=True),
+    ),
+)
+cs.conditional_formatting.add(
+    rng,
+    FormulaRule(
+        formula=['$D2="In progress"'],
+        fill=PatternFill("solid", fgColor="FFEB9C"),
+        font=Font(color="9C6500", bold=True),
+    ),
+)
+cs.conditional_formatting.add(
+    rng,
+    FormulaRule(
+        formula=['$D2="Blocked"'],
+        fill=PatternFill("solid", fgColor="FFC7CE"),
+        font=Font(color="9C0006", bold=True),
+    ),
+)
+cs.conditional_formatting.add(
+    rng,
+    FormulaRule(
+        formula=['$D2="Not started"'],
+        fill=PatternFill("solid", fgColor="EDEDED"),
+        font=Font(color="595959"),
+    ),
+)
 
 ls = cwb.create_sheet("Legend")
 ls.sheet_properties.tabColor = "9AA7B4"
@@ -932,16 +2061,20 @@ def add_footer_pagenum(section, doc_title):
         r.font.size = Pt(8.5)
         r.font.color.rgb = WColor(0x99, 0xA7, 0xB4)
     from docx.enum.text import WD_TAB_ALIGNMENT
+
     p.paragraph_format.tab_stops.add_tab_stop(Inches(7.0), WD_TAB_ALIGNMENT.RIGHT)
     r = p.add_run("\t")
     fld = OxmlElement("w:fldSimple")
     fld.set(qn("w:instr"), "PAGE")
     run = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
-    sz = OxmlElement("w:sz"); sz.set(qn("w:val"), "18")
+    sz = OxmlElement("w:sz")
+    sz.set(qn("w:val"), "18")
     rPr.append(sz)
-    t = OxmlElement("w:t"); t.text = "1"
-    run.append(rPr); run.append(t)
+    t = OxmlElement("w:t")
+    t.text = "1"
+    run.append(rPr)
+    run.append(t)
     fld.append(run)
     p._p.append(fld)
 
@@ -1014,7 +2147,11 @@ def build_word_doc(filename, title, subtitle, meta, sections):
             r = p.add_run(args[0])
             r.font.size = Pt(10)
             r.font.italic = True
-            r.font.color.rgb = WColor(0x80, 0x00, 0x00) if args[1] == "warn" else WColor(0x59, 0x59, 0x59)
+            r.font.color.rgb = (
+                WColor(0x80, 0x00, 0x00)
+                if args[1] == "warn"
+                else WColor(0x59, 0x59, 0x59)
+            )
     doc.save(BASE / filename)
 
 
@@ -1032,131 +2169,289 @@ META_BASE = [
 # --- Administration Guide ---
 meta = [["Document", "Administration Guide"]]
 meta += META_BASE
-meta += [["Related", "sub Documents in the deliverables folder"], ["Baseline", "main @ def9a32"]]
+meta += [
+    ["Related", "sub Documents in the deliverables folder"],
+    ["Baseline", "main @ def9a32"],
+]
 sections = [
     ("h1", "1. Purpose & scope"),
-    ("p", "Day-2 guide for operating the HMSG WEC Racing production environment: the Windows "
-          "MSSQL host, AWS Client VPN access, and (when enabled) the Site-to-Site VPN."),
+    (
+        "p",
+        "Day-2 guide for operating the HMSG WEC Racing production environment: the Windows "
+        "MSSQL host, AWS Client VPN access, and (when enabled) the Site-to-Site VPN.",
+    ),
     ("h1", "2. Access paths"),
-    ("table", ["Path", "How to use", "Notes"], [
-        ["AWS Client VPN", "Open the .ovpn file (AWS supplied client) and sign in with Entra ID SSO",
-         "Primary access for developers (≤10 users)"],
-        ["RDP to EC2", "mstsc → MssqlPrivateIp (172.200.0.128–159 range) with sysadm",
-         "Only reachable through Client VPN / on-prem — no public IP"],
-        ["SSM Session Manager", "EC2 console or aws ssm start-session; uses the instance profile",
-         "Backup access when RDP is unavailable"],
-        ["AWS console / CLI", "AWS account 440027026402, eu-central-1, stack " + STACK,
-         "Operations and troubleshooting"],
-    ], [1.6, 3.4, 2.5]),
+    (
+        "table",
+        ["Path", "How to use", "Notes"],
+        [
+            [
+                "AWS Client VPN",
+                "Open the .ovpn file (AWS supplied client) and sign in with Entra ID SSO",
+                "Primary access for developers (≤10 users)",
+            ],
+            [
+                "RDP to EC2",
+                "mstsc → MssqlPrivateIp (172.200.0.128–159 range) with sysadm",
+                "Only reachable through Client VPN / on-prem — no public IP",
+            ],
+            [
+                "SSM Session Manager",
+                "EC2 console or aws ssm start-session; uses the instance profile",
+                "Backup access when RDP is unavailable",
+            ],
+            [
+                "AWS console / CLI",
+                "AWS account 440027026402, eu-central-1, stack " + STACK,
+                "Operations and troubleshooting",
+            ],
+        ],
+        [1.6, 3.4, 2.5],
+    ),
     ("h1", "3. Key resources"),
-    ("table", ["Resource", "What it is"], [
-        ["hmsg-rac-prd-vpc-ec1", "VPC 172.200.0.0/24 — dual-AZ public / private / DB subnets"],
-        ["hmsg-rac-prd-mssql01-ec2-ec1a", "Windows Server 2022 (m7i.2xlarge) — 250 GB root + 4 TB D: data volume"],
-        ["hmsg-rac-prd-clientvpn-ec1", "Client VPN endpoint — SAML (Entra ID) auth, UDP 443, split tunnel"],
-        ["hmsg-rac-prd-vpn-conn-ec1", "Site-to-Site VPN (optional) — static route to the on-prem network"],
-        ["hmsg-rac-prd-sysadm-password", "Secrets Manager secret — sysadm local administrator password"],
-    ], [3.1, 4.4]),
+    (
+        "table",
+        ["Resource", "What it is"],
+        [
+            [
+                "hmsg-rac-prd-vpc-ec1",
+                "VPC 172.200.0.0/24 — dual-AZ public / private / DB subnets",
+            ],
+            [
+                "hmsg-rac-prd-mssql01-ec2-ec1a",
+                "Windows Server 2022 (m7i.2xlarge) — 250 GB root + 4 TB D: data volume",
+            ],
+            [
+                "hmsg-rac-prd-clientvpn-ec1",
+                "Client VPN endpoint — SAML (Entra ID) auth, UDP 443, split tunnel",
+            ],
+            [
+                "hmsg-rac-prd-vpn-conn-ec1",
+                "Site-to-Site VPN (optional) — static route to the on-prem network",
+            ],
+            [
+                "hmsg-rac-prd-sysadm-password",
+                "Secrets Manager secret — sysadm local administrator password",
+            ],
+        ],
+        [3.1, 4.4],
+    ),
     ("h1", "4. Operating rules"),
-    ("bullets", [
-        "UserData runs only at first boot: rotate sysadm by changing the Windows password on the host first, then update the secret.",
-        "The DB subnet has no internet route by design — AWS APIs are only reachable through the VPC interface endpoints.",
-        "Do not attach a public IP to the EC2 instance.",
-        "Entra ID application and user management are client-owned after handover.",
-        "Temporary implementation IAM permissions are removed at project completion.",
-        "Flow logs: VPC → S3 (Glacier after 30 days, expiry after 365 days). Client VPN → CloudWatch (90 days).",
-    ]),
+    (
+        "bullets",
+        [
+            "UserData runs only at first boot: rotate sysadm by changing the Windows password on the host first, then update the secret.",
+            "The DB subnet has no internet route by design — AWS APIs are only reachable through the VPC interface endpoints.",
+            "Do not attach a public IP to the EC2 instance.",
+            "Entra ID application and user management are client-owned after handover.",
+            "Temporary implementation IAM permissions are removed at project completion.",
+            "Flow logs: VPC → S3 (Glacier after 30 days, expiry after 365 days). Client VPN → CloudWatch (90 days).",
+        ],
+    ),
     ("h1", "5. Routine checks"),
-    ("table", ["Check", "Expected"], [
-        ["Client VPN endpoint state", "available; clients connect via Entra ID SSO"],
-        ["4 TB data volume", "Mounted as D:, NTFS, label SQLData, at least 20% free for SQL growth"],
-        ["Port 1433 reachability", "Allowed from 10.200.0.0/22 (and on-prem CIDR when the S2S VPN exists)"],
-        ["Site-to-Site tunnel state", "UP on both ends; route advertised in pri/db route tables"],
-        ["Secrets Manager secret", "Matches the current Windows password"],
-    ], [3.0, 4.5]),
+    (
+        "table",
+        ["Check", "Expected"],
+        [
+            [
+                "Client VPN endpoint state",
+                "available; clients connect via Entra ID SSO",
+            ],
+            [
+                "4 TB data volume",
+                "Mounted as D:, NTFS, label SQLData, at least 20% free for SQL growth",
+            ],
+            [
+                "Port 1433 reachability",
+                "Allowed from 10.200.0.0/22 (and on-prem CIDR when the S2S VPN exists)",
+            ],
+            [
+                "Site-to-Site tunnel state",
+                "UP on both ends; route advertised in pri/db route tables",
+            ],
+            ["Secrets Manager secret", "Matches the current Windows password"],
+        ],
+        [3.0, 4.5],
+    ),
     ("h1", "6. Handover"),
-    ("p", "At project completion: deliver the documentation set, remove temporary IAM access, "
-          "transfer VPN user administration to HMGRS / the client, and obtain sign-off."),
-    ("note", "Prepare for handover: export Security Group rules, route tables and endpoint IDs from the "
-              "resource inventory workbook before transferring ownership.", "info"),
+    (
+        "p",
+        "At project completion: deliver the documentation set, remove temporary IAM access, "
+        "transfer VPN user administration to HMGRS / the client, and obtain sign-off.",
+    ),
+    (
+        "note",
+        "Prepare for handover: export Security Group rules, route tables and endpoint IDs from the "
+        "resource inventory workbook before transferring ownership.",
+        "info",
+    ),
 ]
-build_word_doc("Administration-Guide.docx",
-               "Administration Guide",
-               "Operating the HMSG WEC Racing production environment",
-               meta, sections)
+build_word_doc(
+    "Administration-Guide.docx",
+    "Administration Guide",
+    "Operating the HMSG WEC Racing production environment",
+    meta,
+    sections,
+)
 
 # --- Backup / Recovery / VPN ---
 meta2 = [["Document", "Backup · MSSQL EC2 Recovery · VPN Configuration"]]
 meta2 += META_BASE
 sections2 = [
     ("h1", "1. Backup strategy"),
-    ("p", "SQL Server is installed by the client; SQL backup scheduling, retention and media are therefore "
-          "client-owned. This section defines the AWS-side duties and the coordination points."),
-    ("table", ["Scope", "Who", "What to do"], [
-        ["SQL backups", "Client (SQL admin)", "Regular full / differential / log backups per the agreed RPO; store on D: or an agreed share"],
-        ["EBS snapshots", "HMSG / ops", "Periodic snapshots of the root (250 GB) and data (4 TB) volumes — e.g. daily data-volume snapshot, weekly full"],
-        ["Flow logs", "AWS (automatic)", "VPC flow logs → S3; lifecycle 30d → Glacier, expire 365d"],
-        ["Client VPN logs", "AWS (automatic)", "CloudWatch log group hmsg-rac-prd-clientvpn-logs, 90-day retention"],
-    ], [1.5, 1.8, 4.2]),
-    ("bullets", [
-        "Coordinate the snapshot window with the SQL backup window to keep the volumes consistent.",
-        "Test restore at least once before go-live (see section 3).",
-    ]),
+    (
+        "p",
+        "SQL Server is installed by the client; SQL backup scheduling, retention and media are therefore "
+        "client-owned. This section defines the AWS-side duties and the coordination points.",
+    ),
+    (
+        "table",
+        ["Scope", "Who", "What to do"],
+        [
+            [
+                "SQL backups",
+                "Client (SQL admin)",
+                "Regular full / differential / log backups per the agreed RPO; store on D: or an agreed share",
+            ],
+            [
+                "EBS snapshots",
+                "HMSG / ops",
+                "Periodic snapshots of the root (250 GB) and data (4 TB) volumes — e.g. daily data-volume snapshot, weekly full",
+            ],
+            [
+                "Flow logs",
+                "AWS (automatic)",
+                "VPC flow logs → S3; lifecycle 30d → Glacier, expire 365d",
+            ],
+            [
+                "Client VPN logs",
+                "AWS (automatic)",
+                "CloudWatch log group hmsg-rac-prd-clientvpn-logs, 90-day retention",
+            ],
+        ],
+        [1.5, 1.8, 4.2],
+    ),
+    (
+        "bullets",
+        [
+            "Coordinate the snapshot window with the SQL backup window to keep the volumes consistent.",
+            "Test restore at least once before go-live (see section 3).",
+        ],
+    ),
     ("h1", "2. MSSQL EC2 recovery"),
     ("h2", "2.1 Instance unhealthy / needs replacement"),
-    ("bullets", [
-        "Instance is protected (DeletionPolicy: Retain) — never delete it blindly; recover in place if the OS is intact.",
-        "If replacement is required: restore the latest EBS snapshot to a new volume, or redeploy the CloudFormation stack and re-attach the data volume.",
-        "Confirm the sysadm secret still matches; reset via EC2 Run Command / Session Manager if needed.",
-    ]),
+    (
+        "bullets",
+        [
+            "Instance is protected (DeletionPolicy: Retain) — never delete it blindly; recover in place if the OS is intact.",
+            "If replacement is required: restore the latest EBS snapshot to a new volume, or redeploy the CloudFormation stack and re-attach the data volume.",
+            "Confirm the sysadm secret still matches; reset via EC2 Run Command / Session Manager if needed.",
+        ],
+    ),
     ("h2", "2.2 Volume failure (root or data)"),
-    ("table", ["Case", "Recovery action"], [
-        ["Root volume lost", "Redeploy the stack (or re-launch from the AMI), re-attach the retained data volume, ensure D: is mounted, verify the sysadm account."],
-        ["Data volume lost", "Restore the latest data-volume snapshot as a new 4 TB volume, attach to D:, run DBCC CHECKDB before reopening access."],
-        ["Both lost", "Full restore: new instance + restored data volume + SQL backup replay (full → diff → logs)."],
-    ], [2.0, 5.5]),
+    (
+        "table",
+        ["Case", "Recovery action"],
+        [
+            [
+                "Root volume lost",
+                "Redeploy the stack (or re-launch from the AMI), re-attach the retained data volume, ensure D: is mounted, verify the sysadm account.",
+            ],
+            [
+                "Data volume lost",
+                "Restore the latest data-volume snapshot as a new 4 TB volume, attach to D:, run DBCC CHECKDB before reopening access.",
+            ],
+            [
+                "Both lost",
+                "Full restore: new instance + restored data volume + SQL backup replay (full → diff → logs).",
+            ],
+        ],
+        [2.0, 5.5],
+    ),
     ("h2", "2.3 sysadm password recovery"),
-    ("p", "Read the value from Secrets Manager, or decrypt the built-in Administrator password with the "
-          "key pair (EC2 console → Get Windows password) and reset sysadm from there. Keep the secret "
-          "in line with the account afterwards."),
+    (
+        "p",
+        "Read the value from Secrets Manager, or decrypt the built-in Administrator password with the "
+        "key pair (EC2 console → Get Windows password) and reset sysadm from there. Keep the secret "
+        "in line with the account afterwards.",
+    ),
     ("h1", "3. Recovery test"),
-    ("bullets", [
-        "Boot the restored instance and verify: D: mounted, SQL services start, 1433 reachable from a Client VPN client.",
-        "Verify SSM Session Manager access (interface endpoints available).",
-        "If the Site-to-Site VPN is deployed, verify the on-prem route in the pri/db route tables.",
-        "Record the test result in the Project Completion Checklist evidence column.",
-    ]),
+    (
+        "bullets",
+        [
+            "Boot the restored instance and verify: D: mounted, SQL services start, 1433 reachable from a Client VPN client.",
+            "Verify SSM Session Manager access (interface endpoints available).",
+            "If the Site-to-Site VPN is deployed, verify the on-prem route in the pri/db route tables.",
+            "Record the test result in the Project Completion Checklist evidence column.",
+        ],
+    ),
     ("h1", "4. VPN configuration"),
     ("h2", "4.1 AWS Client VPN"),
-    ("table", ["Setting", "Value"], [
-        ["Client CIDR", "10.200.0.0/22"],
-        ["Authentication", "Federated SAML — Microsoft Entra ID (client-side enterprise app)"],
-        ["Transport / port", "UDP 443 — no TCP fallback"],
-        ["Split tunnel", "Enabled"],
-        ["Target networks", "pri-ec1a (172.200.0.64/27) · pri-ec1c (172.200.0.96/27)"],
-        ["Route", "172.200.0.0/24 via the pri-ec1a association"],
-        ["Authorization", "All groups → whole VPC; restrict later via Entra group claims if required"],
-        ["Logging", "CloudWatch — 90 days"],
-    ], [2.0, 5.5]),
+    (
+        "table",
+        ["Setting", "Value"],
+        [
+            ["Client CIDR", "10.200.0.0/22"],
+            [
+                "Authentication",
+                "Federated SAML — Microsoft Entra ID (client-side enterprise app)",
+            ],
+            ["Transport / port", "UDP 443 — no TCP fallback"],
+            ["Split tunnel", "Enabled"],
+            [
+                "Target networks",
+                "pri-ec1a (172.200.0.64/27) · pri-ec1c (172.200.0.96/27)",
+            ],
+            ["Route", "172.200.0.0/24 via the pri-ec1a association"],
+            [
+                "Authorization",
+                "All groups → whole VPC; restrict later via Entra group claims if required",
+            ],
+            ["Logging", "CloudWatch — 90 days"],
+        ],
+        [2.0, 5.5],
+    ),
     ("h2", "4.2 SAML values for the client's Entra ID application"),
-    ("table", ["Field", "Value"], [
-        ["Identifier (Entity ID)", "urn:amazon:webservices:clientvpn"],
-        ["Reply URL", "https://self-service.clientvpn.amazonaws.com/api/auth/sso/saml"],
-        ["Sign-on URL", "http://127.0.0.1:35001 (loopback listener on the user device)"],
-    ], [2.0, 5.5]),
+    (
+        "table",
+        ["Field", "Value"],
+        [
+            ["Identifier (Entity ID)", "urn:amazon:webservices:clientvpn"],
+            [
+                "Reply URL",
+                "https://self-service.clientvpn.amazonaws.com/api/auth/sso/saml",
+            ],
+            [
+                "Sign-on URL",
+                "http://127.0.0.1:35001 (loopback listener on the user device)",
+            ],
+        ],
+        [2.0, 5.5],
+    ),
     ("h2", "4.3 Site-to-Site VPN (optional)"),
-    ("bullets", [
-        "Created only when CustomerGatewayIp and OnPremCidr are both supplied (add-only stack update).",
-        "Customer gateway: ipsec.1, BGP ASN 65000. Amazon side ASN 64512. Static routing only.",
-        "Download the tunnel configuration from the VPC console (Site-to-Site VPN connections) and hand it to the on-prem firewall team.",
-        "If the race site moves (new public IP), update the stack — the VPN connection is replaced and must be re-configured on both sides.",
-    ]),
-    ("note", "Never publish the tunnel pre-shared keys or the sysadm password in any shared document. "
-             "Secrets stay in Secrets Manager and in the VPN consoles.", "warn"),
+    (
+        "bullets",
+        [
+            "Created only when CustomerGatewayIp and OnPremCidr are both supplied (add-only stack update).",
+            "Customer gateway: ipsec.1, BGP ASN 65000. Amazon side ASN 64512. Static routing only.",
+            "Download the tunnel configuration from the VPC console (Site-to-Site VPN connections) and hand it to the on-prem firewall team.",
+            "If the race site moves (new public IP), update the stack — the VPN connection is replaced and must be re-configured on both sides.",
+        ],
+    ),
+    (
+        "note",
+        "Never publish the tunnel pre-shared keys or the sysadm password in any shared document. "
+        "Secrets stay in Secrets Manager and in the VPN consoles.",
+        "warn",
+    ),
 ]
-build_word_doc("Backup-MSSQL-EC2-Recovery-and-VPN-Configuration.docx",
-               "Backup · MSSQL EC2 Recovery · VPN Configuration",
-               "Recovery runbook and VPN reference for the HMSG WEC Racing production environment",
-               meta2, sections2)
+build_word_doc(
+    "Backup-MSSQL-EC2-Recovery-and-VPN-Configuration.docx",
+    "Backup · MSSQL EC2 Recovery · VPN Configuration",
+    "Recovery runbook and VPN reference for the HMSG WEC Racing production environment",
+    meta2,
+    sections2,
+)
 
 # ---------------------------------------------------------------------------
 print("Deliverables regenerated in", BASE)
