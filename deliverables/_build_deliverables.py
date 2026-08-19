@@ -1185,9 +1185,9 @@ inv_rows = [
         "FlowLogBucket",
         "AWS::S3::Bucket",
         "hmsg-rac-prd-flowlog-<acct>",
-        "SSE-S3 · lifecycle: Glacier @30d · expire @365d",
+        "SSE-S3 · lifecycle: Glacier @30d · expire @365d · DeletionPolicy: Retain",
         "-",
-        "VPC flow logs",
+        "VPC flow logs — retained on stack delete (empty manually)",
     ],
     [
         "Network",

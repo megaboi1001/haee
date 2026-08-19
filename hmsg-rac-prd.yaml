@@ -331,6 +331,8 @@ Resources:
   # --- VPC Flow Logs -> S3 (lifecycle: 1 month -> 1 year) ---
   FlowLogBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub "${ProjectName}-${EnvironmentName}-flowlog-${AWS::AccountId}"
       VersioningConfiguration:
@@ -733,6 +735,7 @@ Resources:
       VpnPort: 443
       SecurityGroupIds:
         - !Ref ClientVpnSg
+      VpcId: !Ref Vpc
       TagSpecifications:
         - ResourceType: client-vpn-endpoint
           Tags:

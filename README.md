@@ -244,6 +244,7 @@ Supplying only one of the two values silently skips the VPN rather than half-bui
   (replaces CGW + VPN connection; tunnel config must be re-shared with on-prem).
 - **DB instance has no internet egress** (by design, matches the Q&A sheet) — only reaches Secrets Manager/SSM via the VPC interface endpoints in that subnet, nothing else. SQL media must be staged via VPN. If Windows Update / external downloads are ever needed, add `0.0.0.0/0 → NAT` to the DB route table.
 - **Instance protected** from accidental deletion (`DeletionPolicy: Retain`). `SysadmSecret` is retained too, so a retained host never loses the only copy of its admin password.
+- **Flow log bucket is retained** (`DeletionPolicy: Retain`) — CloudFormation cannot delete an S3 bucket that still holds objects, so a stack teardown leaves `hmsg-rac-prd-flowlog-<acct>` behind with its logs. Empty it with `aws s3 rm s3://<bucket> --recursive` afterward (treat it as the flow-log archive).
 
 ### Rotating the sysadm password
 
