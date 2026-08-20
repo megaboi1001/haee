@@ -2108,6 +2108,15 @@ def build_word_doc(filename, title, subtitle, meta, sections):
         elif kind == "p":
             p = doc.add_paragraph(args[0])
             p.paragraph_format.space_after = Pt(6)
+        elif kind == "code":
+            for cmd in args[0]:
+                cp = doc.add_paragraph(cmd)
+                cp.paragraph_format.space_after = Pt(2)
+                cp.paragraph_format.left_indent = Inches(0.2)
+                for r in cp.runs:
+                    r.font.name = "Consolas"
+                    r.font.size = Pt(9)
+                    r.font.color.rgb = WColor(0x00, 0x33, 0x66)
         elif kind == "bullets":
             bullets_doc(doc, args[0])
         elif kind == "table":
@@ -2145,13 +2154,179 @@ meta += [
     ["Baseline", "main @ def9a32"],
 ]
 sections = [
-    ("h1", "1. Purpose & scope"),
+    ("h1", "1. Installation"),
+    (
+        "p",
+        "Standardized installation procedure for the HMSG WEC Racing production environment. "
+        "Validated end-to-end on the sandbox account and applied to production 440027026402 "
+        f"({REGION}). The commands below use the production CLI profile (haee).",
+    ),
+    ("h2", "1.1 Prerequisites (check before every fresh install)"),
+    (
+        "table",
+        ["Prerequisite", "How to satisfy", "Notes"],
+        [
+            [
+                "Deployer IAM rights",
+                "AdministratorAccess (project group)",
+                "Required for CloudFormation and CAPABILITY_NAMED_IAM (IAM role / instance profile)",
+            ],
+            [
+                "Region",
+                f"{REGION}",
+                "Key pairs, ACM certs, stacks and quotas are all region-scoped",
+            ],
+            [
+                "EC2 key pair hmsg-rac-prd-key-ec2-ec1",
+                "aws ec2 create-key-pair (or import-key-pair)",
+                "Used to decrypt the Windows Administrator password; keep the .pem private",
+            ],
+            [
+                "vCPU quota - standard instances",
+                "Service Quotas: raise 5 to 16 (quota code L-1216C47A)",
+                "m7i.2xlarge = 8 vCPU; the default unit-5 quota blocks instance creation",
+            ],
+            [
+                "ACM server certificate (vpn.hmg-racing.com)",
+                "Import the project Easy-RSA cert (private CA), or use a public cert",
+                "RSA-2048 only (Client VPN limit). Keep easy-rsa/pki/ - renewal needs the same CA",
+            ],
+            [
+                "Client on-prem values (optional)",
+                "deploy with CustomerGatewayIp + OnPremCidr",
+                "All-or-nothing. Omit both to skip the Site-to-Site VPN; enabling later is add-only",
+            ],
+        ],
+    ),
+    (
+        "note",
+        "Production 440027026402: all prerequisites are in place - key pair created, vCPU quota "
+        "raised 5 to 16, Easy-RSA certificate imported to ACM.",
+        "info",
+    ),
+    ("h2", "1.2 Dry-run review (recommended before every deploy)"),
+    (
+        "code",
+        [
+            "cd /Users/dda/Downloads/haee",
+            "aws cloudformation deploy \\",
+            "  --template-file hmsg-rac-prd.yaml \\",
+            "  --stack-name hmsg-rac-prd \\",
+            "  --region eu-central-1 --profile haee \\",
+            "  --capabilities CAPABILITY_NAMED_IAM \\",
+            "  --parameter-overrides \\",
+            "    AdminPassword='<windows-admin-password>' \\",
+            "    ServerCertificateArn=arn:aws:acm:eu-central-1:440027026402:certificate/<id> \\",
+            "  --no-execute-changeset",
+        ],
+    ),
+    (
+        "p",
+        "Review the change set (aws cloudformation describe-change-set --change-set-name <arn>). "
+        "Expected on a fresh stack: creates only, no replacements.",
+    ),
+    ("h2", "1.3 Deploy"),
+    (
+        "code",
+        [
+            "aws cloudformation deploy \\",
+            "  --template-file hmsg-rac-prd.yaml \\",
+            "  --stack-name hmsg-rac-prd \\",
+            "  --region eu-central-1 --profile haee \\",
+            "  --capabilities CAPABILITY_NAMED_IAM \\",
+            "  --parameter-overrides \\",
+            "    AdminPassword='<windows-admin-password>' \\",
+            "    ServerCertificateArn=arn:aws:acm:eu-central-1:440027026402:certificate/<id>",
+        ],
+    ),
+    (
+        "note",
+        "AdminPassword is CREATE-ONLY: it must be the password you intend to use on the Windows "
+        "sysadm account. Changing it later in CloudFormation rewrites the secret but not the OS "
+        "account - to rotate, follow Operating rules instead.",
+        "warn",
+    ),
+    ("h2", "1.4 Post-deploy - apply the real Entra ID SAML metadata"),
+    (
+        "p",
+        "The template installs a placeholder SAML document (CloudFormation parameters are capped "
+        "at 4,096 characters; real Entra ID metadata is ~13 KB). VPN sign-in does NOT work until "
+        "this command is run with the client's metadata file:",
+    ),
+    (
+        "code",
+        [
+            "aws iam update-saml-provider \\",
+            "  --saml-provider-arn <SamlProviderArn from stack outputs> \\",
+            '  --saml-metadata-document "file://AWS ClientVPN.xml" --profile haee',
+        ],
+    ),
+    ("h2", "1.5 Verify installation"),
+    (
+        "bullets",
+        [
+            "Stack status CREATE_COMPLETE, no failed events (aws cloudformation describe-stack-events --stack-name hmsg-rac-prd)",
+            "Outputs present: MssqlInstanceId, MssqlPrivateIp, ClientVpnEndpointId, SamlProviderArn, NatEip, SiteToSiteVpnDeployed",
+            "Instance running (m7i.2xlarge) - aws ec2 describe-instances --instance-ids <MssqlInstanceId>",
+            "Client VPN endpoint available - aws ec2 describe-client-vpn-endpoints --client-vpn-endpoint-ids <id>",
+            "SAML provider resolves to https://sts.windows.net/... (not placeholder.invalid) - aws iam get-saml-provider",
+            "Secret exists - aws secretsmanager get-secret-value --secret-id hmsg-rac-prd-sysadm-password",
+        ],
+    ),
+    (
+        "note",
+        "Smoke test: sign in through the AWS Client VPN client with the Entra ID account BEFORE "
+        "distributing the .ovpn bundle.",
+        "info",
+    ),
+    ("h2", "1.6 Enabling the Site-to-Site VPN later"),
+    (
+        "p",
+        "When the client supplies both values, re-deploy with ONLY those two overrides - every "
+        "other parameter is preserved via UsePreviousValue. The update is add-only: +9 resources, "
+        "0 modified, 0 replaced.",
+    ),
+    (
+        "code",
+        [
+            "aws cloudformation deploy \\",
+            "  --template-file hmsg-rac-prd.yaml \\",
+            "  --stack-name hmsg-rac-prd \\",
+            "  --region eu-central-1 --profile haee \\",
+            "  --capabilities CAPABILITY_NAMED_IAM \\",
+            "  --parameter-overrides \\",
+            "    CustomerGatewayIp=<on-prem-vpn-public-ip> \\",
+            "    OnPremCidr=<on-prem-network-cidr>",
+        ],
+    ),
+    ("h2", "1.7 Teardown (full environment removal)"),
+    (
+        "p",
+        "MssqlInstance and SysadmSecret are protected by DeletionPolicy: Retain - stack deletion "
+        "keeps both by design. For a complete cleanup, terminate the instance first, then delete "
+        "the stack, then force-delete the secret.",
+    ),
+    (
+        "code",
+        [
+            "aws ec2 terminate-instances --instance-ids <MssqlInstanceId>",
+            "aws cloudformation delete-stack --stack-name hmsg-rac-prd --region eu-central-1 --profile haee",
+            "aws secretsmanager delete-secret --secret-id hmsg-rac-prd-sysadm-password --force-delete-without-recovery --region eu-central-1 --profile haee",
+        ],
+    ),
+    (
+        "note",
+        "Re-installing after teardown: re-import the same certificate (or regenerate the CA), "
+        "recreate the key pair if deleted, and re-run sections 1.1-1.5.",
+        "info",
+    ),
+    ("h1", "2. Purpose & scope"),
     (
         "p",
         "Day-2 guide for operating the HMSG WEC Racing production environment: the Windows "
         "MSSQL host, AWS Client VPN access, and (when enabled) the Site-to-Site VPN.",
     ),
-    ("h1", "2. Access paths"),
+    ("h1", "3. Access paths"),
     (
         "table",
         ["Path", "How to use", "Notes"],
@@ -2179,7 +2354,7 @@ sections = [
         ],
         [1.6, 3.4, 2.5],
     ),
-    ("h1", "3. Key resources"),
+    ("h1", "4. Key resources"),
     (
         "table",
         ["Resource", "What it is"],
@@ -2207,7 +2382,7 @@ sections = [
         ],
         [3.1, 4.4],
     ),
-    ("h1", "4. Operating rules"),
+    ("h1", "5. Operating rules"),
     (
         "bullets",
         [
@@ -2219,7 +2394,7 @@ sections = [
             "Client VPN → CloudWatch (90 days).",
         ],
     ),
-    ("h1", "5. Routine checks"),
+    ("h1", "6. Routine checks"),
     (
         "table",
         ["Check", "Expected"],
@@ -2244,7 +2419,7 @@ sections = [
         ],
         [3.0, 4.5],
     ),
-    ("h1", "6. Handover"),
+    ("h1", "7. Handover"),
     (
         "p",
         "At project completion: deliver the documentation set, remove temporary IAM access, "
