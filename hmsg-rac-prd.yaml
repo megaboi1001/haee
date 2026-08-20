@@ -707,17 +707,11 @@ Resources:
       ClientVpnEndpointId: !Ref ClientVpnEndpoint
       SubnetId: !Ref PriSubnetC
 
-  # Route so VPN clients can reach the WHOLE VPC (incl. DB subnet), not just the /27 target subnets
-  ClientVpnRouteVpc:
-    Type: AWS::EC2::ClientVpnRoute
-    DependsOn:
-      - ClientVpnAssocPriA
-      - ClientVpnAssocPriC
-    Properties:
-      ClientVpnEndpointId: !Ref ClientVpnEndpoint
-      DestinationCidrBlock: !Ref VpcCidr
-      TargetVpcSubnetId: !Ref PriSubnetA
-      Description: Route to the whole VPC via the private network
+  # NO explicit route to VpcCidr here: aws auto-creates a route to the VPC CIDR
+  # (Origin: associate-target-network) the moment a subnet is associated as a
+  # target network. An explicit ClientVpnRoute to VpcCidr therefore fails with
+  # InvalidClientVpnDuplicateRoute ("Route already exists"). Clients reach the
+  # whole VPC (incl. DB subnets) via that auto-route.
 
   ClientVpnAuthRule:
     Type: AWS::EC2::ClientVpnAuthorizationRule

@@ -1425,15 +1425,6 @@ inv_rows = [
     ],
     [
         "VPN",
-        "ClientVpnRouteVpc",
-        "AWS::EC2::ClientVpnRoute",
-        "route → VPC /24",
-        "Via PriSubnetA association",
-        "-",
-        "",
-    ],
-    [
-        "VPN",
         "ClientVpnAuthRule",
         "AWS::EC2::ClientVpnAuthorizationRule",
         "authorize all groups",
