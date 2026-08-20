@@ -2158,7 +2158,7 @@ sections = [
         [
             [
                 "AWS Client VPN",
-                "Open the .ovpn file (AWS supplied client) and sign in with Entra ID SSO",
+                "Import HSMG-client-config.ovpn into the AWS Client VPN client and sign in with Entra ID SSO — see the Client VPN Quick-Start for end users",
                 "Primary access for developers (≤10 users)",
             ],
             [
